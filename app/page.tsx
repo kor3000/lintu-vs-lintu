@@ -5,7 +5,7 @@ import "./stylesheets/main.css";
 import React, { useState } from "react";
 import SpeciesContainer from "./species_container";
 import SearchBar from "./search_bar";
-import { SpeciesActionKind, SpeciesAction } from "./types/common_types";
+import { SpeciesActionKind, SpeciesAction } from "./common/types";
 
 export default function Home() {
   const [selectedSpecies, setSelectedSpecies] = useState<number[]>([]);

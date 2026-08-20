@@ -1,6 +1,6 @@
-import { SpeciesData, ClassOrders } from "../types/common_types";
+import { SpeciesData, ClassOrder } from "../common/types";
 
-export const classifications: ClassOrders[] = [
+export const classifications: ClassOrder[] = [
   {
     id: 101,
     name: "Passeriformes",
@@ -87,12 +87,14 @@ export const mockSpecies: SpeciesData[] = [
     },
     images: [
       {
+        id: 1,
         url: "https://upload.wikimedia.org/wikipedia/commons/0/0c/Steinschmaetzer_Northern_wheatear_male.jpg",
-        license: "https://commons.wikimedia.org/wiki/File:Steinschmaetzer_Northern_wheatear_male.jpg"
+        license_url: "https://commons.wikimedia.org/wiki/File:Steinschmaetzer_Northern_wheatear_male.jpg"
       },
       {
+        id: 1,
         url: "https://upload.wikimedia.org/wikipedia/commons/1/17/Northern_wheatear_Oenanthe_oenanthe.jpg",
-        license: "https://commons.wikimedia.org/wiki/File:Northern_wheatear_Oenanthe_oenanthe.jpg"
+        license_url: "https://commons.wikimedia.org/wiki/File:Northern_wheatear_Oenanthe_oenanthe.jpg"
       }
     ]
   },
@@ -116,12 +118,14 @@ export const mockSpecies: SpeciesData[] = [
     },
     images: [
       {
+        id: 1,
         url: "https://upload.wikimedia.org/wikipedia/commons/f/f4/Tarier_des_pr%C3%A8s_Zaghouan_NP001.jpg",
-        license: "https://commons.wikimedia.org/wiki/File:Tarier_des_pr%C3%A8s_Zaghouan_NP001.jpg"
+        license_url: "https://commons.wikimedia.org/wiki/File:Tarier_des_pr%C3%A8s_Zaghouan_NP001.jpg"
       },
       {
+        id: 1,
         url: "https://upload.wikimedia.org/wikipedia/commons/0/02/Whinchat_(Saxicola_rubetra)_Uganda.jpg",
-        license: "https://commons.wikimedia.org/wiki/File:Whinchat_(Saxicola_rubetra)_Uganda.jpg"
+        license_url: "https://commons.wikimedia.org/wiki/File:Whinchat_(Saxicola_rubetra)_Uganda.jpg"
       }
     ]
   },
@@ -150,12 +154,14 @@ export const mockSpecies: SpeciesData[] = [
     },
     images: [
       {
+        id: 1,
         url: "https://upload.wikimedia.org/wikipedia/commons/9/9f/Siberian_stonechat_(Saxicola_maurus)_male_non-breeding.jpg",
-        license: "https://commons.wikimedia.org/wiki/File:Siberian_stonechat_(Saxicola_maurus)_male_non-breeding.jpg"
+        license_url: "https://commons.wikimedia.org/wiki/File:Siberian_stonechat_(Saxicola_maurus)_male_non-breeding.jpg"
       },
       {
+        id: 1,
         url: "https://upload.wikimedia.org/wikipedia/commons/1/14/Siberian_stonechat_-_Jamnagar%252C_Gujarat_2020-11-10.jpg",
-        license: "https://commons.wikimedia.org/wiki/File:Siberian_stonechat_-_Jamnagar%252C_Gujarat_2020-11-10.jpg"
+        license_url: "https://commons.wikimedia.org/wiki/File:Siberian_stonechat_-_Jamnagar%252C_Gujarat_2020-11-10.jpg"
       }
     ]
   },
@@ -184,12 +190,14 @@ export const mockSpecies: SpeciesData[] = [
     },
     images: [
       {
+        id: 1,
         url: "https://upload.wikimedia.org/wikipedia/commons/e/e0/Tringa_stagnatilis_2_-_Laem_Pak_Bia.jpg",
-        license: "https://en.wikipedia.org/wiki/File:Tringa_stagnatilis_2_-_Laem_Pak_Bia.jpg"
+        license_url: "https://en.wikipedia.org/wiki/File:Tringa_stagnatilis_2_-_Laem_Pak_Bia.jpg"
       },
       {
+        id: 1,
         url: "https://upload.wikimedia.org/wikipedia/commons/0/06/Marsh_sandpiper(Tringa_stagnatilis)_2.jpg",
-        license: "https://commons.wikimedia.org/wiki/File:Marsh_sandpiper(Tringa_stagnatilis)_2.jpg"
+        license_url: "https://commons.wikimedia.org/wiki/File:Marsh_sandpiper(Tringa_stagnatilis)_2.jpg"
       }
     ]
   },
@@ -218,12 +226,14 @@ export const mockSpecies: SpeciesData[] = [
     },
     images: [
       {
+        id: 1,
         url: "https://upload.wikimedia.org/wikipedia/commons/9/92/Green-Sandpiper-Sandeep.jpg",
-        license: "https://commons.wikimedia.org/wiki/File:Green-Sandpiper-Sandeep.jpg"
+        license_url: "https://commons.wikimedia.org/wiki/File:Green-Sandpiper-Sandeep.jpg"
       },
       {
+        id: 1,
         url: "https://upload.wikimedia.org/wikipedia/commons/1/19/Green_Sandpiper_(Tringa_ochropus)_(30725772867).jpg",
-        license: "https://en.wikipedia.org/wiki/File:Green_Sandpiper_(Tringa_ochropus)_(30725772867).jpg"
+        license_url: "https://en.wikipedia.org/wiki/File:Green_Sandpiper_(Tringa_ochropus)_(30725772867).jpg"
       }
     ]
   },
@@ -252,16 +262,19 @@ export const mockSpecies: SpeciesData[] = [
     },
     images: [
       {
+        id: 1,
         url: "https://upload.wikimedia.org/wikipedia/commons/d/d4/Tringa_glareola_-_Laem_Phak_Bia.jpg",
-        license: "https://en.wikipedia.org/wiki/File:Tringa_glareola_-_Laem_Phak_Bia.jpg"
+        license_url: "https://en.wikipedia.org/wiki/File:Tringa_glareola_-_Laem_Phak_Bia.jpg"
       },
       {
+        id: 1,
         url: "https://upload.wikimedia.org/wikipedia/commons/8/87/Wood_Sandpiper_Safari_Park.jpg",
-        license: "https://commons.wikimedia.org/wiki/File:Wood_Sandpiper_Safari_Park.jpg"
+        license_url: "https://commons.wikimedia.org/wiki/File:Wood_Sandpiper_Safari_Park.jpg"
       },
       {
+        id: 1,
         url: "https://upload.wikimedia.org/wikipedia/commons/a/ae/Wood_Sandpiper_Photograph_By_Shantanu_Kuveskar.jpg",
-        license: "https://commons.wikimedia.org/wiki/File:Wood_Sandpiper_Photograph_By_Shantanu_Kuveskar.jpg"
+        license_url: "https://commons.wikimedia.org/wiki/File:Wood_Sandpiper_Photograph_By_Shantanu_Kuveskar.jpg"
       }
     ]
   },
@@ -290,16 +303,19 @@ export const mockSpecies: SpeciesData[] = [
     },
     images: [
       {
+        id: 1,
         url: "https://upload.wikimedia.org/wikipedia/commons/6/6f/Common_greenshank_(Tringa_nebularia)_Bahrain.jpg",
-        license: "https://commons.wikimedia.org/wiki/File:Common_greenshank_(Tringa_nebularia)_Bahrain.jpg"
+        license_url: "https://commons.wikimedia.org/wiki/File:Common_greenshank_(Tringa_nebularia)_Bahrain.jpg"
       },
       {
+        id: 1,
         url: "https://upload.wikimedia.org/wikipedia/commons/c/cc/Tringa_nebularia_(Marek_Szczepanek).jpg",
-        license: "https://commons.wikimedia.org/wiki/File:Tringa_nebularia_(Marek_Szczepanek).jpg"
+        license_url: "https://commons.wikimedia.org/wiki/File:Tringa_nebularia_(Marek_Szczepanek).jpg"
       },
       {
+        id: 1,
         url: "https://upload.wikimedia.org/wikipedia/commons/c/c5/Common-Greenshank.jpg",
-        license: "https://commons.wikimedia.org/wiki/File:Common-Greenshank.jpg"
+        license_url: "https://commons.wikimedia.org/wiki/File:Common-Greenshank.jpg"
       }
     ]
   },
@@ -328,16 +344,19 @@ export const mockSpecies: SpeciesData[] = [
     },
     images: [
       {
+        id: 1,
         url: "https://upload.wikimedia.org/wikipedia/commons/e/e7/Common_redshank_(Tringa_totanus)_breeding_Marken.jpg",
-        license: "https://en.wikipedia.org/wiki/File:Common_redshank_(Tringa_totanus)_breeding_Marken.jpg"
+        license_url: "https://en.wikipedia.org/wiki/File:Common_redshank_(Tringa_totanus)_breeding_Marken.jpg"
       },
       {
+        id: 1,
         url: "https://upload.wikimedia.org/wikipedia/commons/0/01/Common_redshank_(Tringa_totanus)_Bahrain.jpg",
-        license: "https://commons.wikimedia.org/wiki/File:Common_redshank_(Tringa_totanus)_Bahrain.jpg"
+        license_url: "https://commons.wikimedia.org/wiki/File:Common_redshank_(Tringa_totanus)_Bahrain.jpg"
       },
       {
+        id: 1,
         url: "https://upload.wikimedia.org/wikipedia/commons/0/0d/Rotschenkel_Pfahl_%C3%9Cberblick.JPG",
-        license: "https://commons.wikimedia.org/wiki/File:Rotschenkel_Pfahl_%C3%9Cberblick.JPG"
+        license_url: "https://commons.wikimedia.org/wiki/File:Rotschenkel_Pfahl_%C3%9Cberblick.JPG"
       }
     ]
   },
@@ -366,16 +385,19 @@ export const mockSpecies: SpeciesData[] = [
     },
     images: [
       {
+        id: 1,
         url: "https://upload.wikimedia.org/wikipedia/commons/b/ba/Terek_Sandpiper_(Xenus_cinereus)_(53969645800).jpg",
-        license: "https://commons.wikimedia.org/wiki/File:Terek_Sandpiper_(Xenus_cinereus)_(53969645800).jpg"
+        license_url: "https://commons.wikimedia.org/wiki/File:Terek_Sandpiper_(Xenus_cinereus)_(53969645800).jpg"
       },
       {
+        id: 1,
         url: "https://upload.wikimedia.org/wikipedia/commons/d/d9/Xenus_cinereus_Lapland.JPG",
-        license: "https://commons.wikimedia.org/wiki/File:Xenus_cinereus_Lapland.JPG"
+        license_url: "https://commons.wikimedia.org/wiki/File:Xenus_cinereus_Lapland.JPG"
       },
       {
+        id: 1,
         url: "https://upload.wikimedia.org/wikipedia/commons/0/06/Terek_Sandpiper_AMSM5480_TSAN.jpg",
-        license: "https://en.wikipedia.org/wiki/File:Terek_Sandpiper_AMSM5480_TSAN.jpg"
+        license_url: "https://en.wikipedia.org/wiki/File:Terek_Sandpiper_AMSM5480_TSAN.jpg"
       }
     ]
   },
@@ -404,16 +426,19 @@ export const mockSpecies: SpeciesData[] = [
     },
     images: [
       {
+        id: 1,
         url: "https://upload.wikimedia.org/wikipedia/commons/b/b1/Larus_canus_Common_Gull_in_Norway.jpg",
-        license: "https://commons.wikimedia.org/wiki/File:Larus_canus_Common_Gull_in_Norway.jpg"
+        license_url: "https://commons.wikimedia.org/wiki/File:Larus_canus_Common_Gull_in_Norway.jpg"
       },
       {
+        id: 1,
         url: "https://upload.wikimedia.org/wikipedia/commons/c/c7/Kalalokki_wiki-01.jpg",
-        license: "https://commons.wikimedia.org/wiki/File:Kalalokki_wiki-01.jpg"
+        license_url: "https://commons.wikimedia.org/wiki/File:Kalalokki_wiki-01.jpg"
       },
       {
+        id: 1,
         url: "https://upload.wikimedia.org/wikipedia/commons/f/f7/Common_gull_(Larus_canus)_adult_breeding_in_flight_Oppdal.jpg",
-        license: "https://en.wikipedia.org/wiki/File:Common_gull_(Larus_canus)_adult_breeding_in_flight_Oppdal.jpg"
+        license_url: "https://en.wikipedia.org/wiki/File:Common_gull_(Larus_canus)_adult_breeding_in_flight_Oppdal.jpg"
       }
     ]
   },
@@ -442,12 +467,14 @@ export const mockSpecies: SpeciesData[] = [
     },
     images: [
       {
+        id: 1,
         url: "https://upload.wikimedia.org/wikipedia/commons/4/46/2016.07.16.-12-Kiellinie_Kiel--Silbermoewe.jpg",
-        license: "https://en.wikipedia.org/wiki/File:2016.07.16.-12-Kiellinie_Kiel--Silbermoewe.jpg"
+        license_url: "https://en.wikipedia.org/wiki/File:2016.07.16.-12-Kiellinie_Kiel--Silbermoewe.jpg"
       },
       {
+        id: 1,
         url: "https://upload.wikimedia.org/wikipedia/commons/4/4f/European_herring_gull_(Larus_argentatus)_juvenile.jpg",
-        license: "https://en.wikipedia.org/wiki/File:European_herring_gull_(Larus_argentatus)_juvenile.jpg"
+        license_url: "https://en.wikipedia.org/wiki/File:European_herring_gull_(Larus_argentatus)_juvenile.jpg"
       }
     ]
   },
@@ -476,12 +503,14 @@ export const mockSpecies: SpeciesData[] = [
     },
     images: [
       {
+        id: 1,
         url: "https://upload.wikimedia.org/wikipedia/commons/5/5b/Selk%C3%A4lokki.jpg",
-        license: "https://en.wikipedia.org/wiki/File:Selk%C3%A4lokki.jpg"
+        license_url: "https://en.wikipedia.org/wiki/File:Selk%C3%A4lokki.jpg"
       },
       {
+        id: 1,
         url: "https://upload.wikimedia.org/wikipedia/commons/4/45/Silltrut-Larus_fuscus-1cy-Ystad-2009.jpg",
-        license: "https://en.wikipedia.org/wiki/File:Silltrut-Larus_fuscus-1cy-Ystad-2009.jpg"
+        license_url: "https://en.wikipedia.org/wiki/File:Silltrut-Larus_fuscus-1cy-Ystad-2009.jpg"
       }
     ]
   },
@@ -510,12 +539,14 @@ export const mockSpecies: SpeciesData[] = [
     },
     images: [
       {
+        id: 1,
         url: "https://upload.wikimedia.org/wikipedia/commons/7/7f/Larus_marinus_watching.jpg",
-        license: "https://en.wikipedia.org/wiki/File:Larus_marinus_watching.jpg"
+        license_url: "https://en.wikipedia.org/wiki/File:Larus_marinus_watching.jpg"
       },
       {
+        id: 1,
         url: "https://upload.wikimedia.org/wikipedia/commons/d/de/Sopot_mewa.jpg",
-        license: "https://en.wikipedia.org/wiki/File:Sopot_mewa.jpg"
+        license_url: "https://en.wikipedia.org/wiki/File:Sopot_mewa.jpg"
       }
     ]
   },
@@ -544,12 +575,14 @@ export const mockSpecies: SpeciesData[] = [
     },
     images: [
       {
+        id: 1,
         url: "https://upload.wikimedia.org/wikipedia/commons/2/29/Chroicocephalus_ridibundus_(summer).jpg",
-        license: "https://en.wikipedia.org/wiki/File:Chroicocephalus_ridibundus_(summer).jpg"
+        license_url: "https://en.wikipedia.org/wiki/File:Chroicocephalus_ridibundus_(summer).jpg"
       },
       {
+        id: 1,
         url: "https://upload.wikimedia.org/wikipedia/commons/a/a9/Black-headed_gull_(05557).jpg",
-        license: "https://en.wikipedia.org/wiki/File:Black-headed_gull_(05557).jpg"
+        license_url: "https://en.wikipedia.org/wiki/File:Black-headed_gull_(05557).jpg"
       }
     ]
   },
@@ -578,16 +611,19 @@ export const mockSpecies: SpeciesData[] = [
     },
     images: [
       {
+        id: 1,
         url: "https://upload.wikimedia.org/wikipedia/commons/5/50/%C4%8Cajka_mal%C3%A1_(Larus_minutus)_a_(4834254958).jpg",
-        license: "https://en.wikipedia.org/wiki/File:%C4%8Cajka_mal%C3%A1_(Larus_minutus)_a_(4834254958).jpg"
+        license_url: "https://en.wikipedia.org/wiki/File:%C4%8Cajka_mal%C3%A1_(Larus_minutus)_a_(4834254958).jpg"
       },
       {
+        id: 1,
         url: "https://upload.wikimedia.org/wikipedia/commons/d/da/Hydrocoloeus_minutus_Russia_10.jpg",
-        license: "https://en.wikipedia.org/wiki/File:Hydrocoloeus_minutus_Russia_10.jpg"
+        license_url: "https://en.wikipedia.org/wiki/File:Hydrocoloeus_minutus_Russia_10.jpg"
       },
       {
+        id: 1,
         url: "https://upload.wikimedia.org/wikipedia/commons/a/a2/Bird_Yyterin_lietteet_4.jpg",
-        license: "https://en.wikipedia.org/wiki/File:Bird_Yyterin_lietteet_4.jpg"
+        license_url: "https://en.wikipedia.org/wiki/File:Bird_Yyterin_lietteet_4.jpg"
       }
     ]
   }

@@ -1,0 +1,121 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Order { // AviList Taxon_rank="order"
+  id        Int     @id @default(autoincrement())
+  name      String  @unique
+  families  Family[]
+}
+
+model Family { // AviList Taxon_rank="family"
+  id        Int     @id @default(autoincrement())
+  name      String  @unique
+  order     Order   @relation(fields: [orderId], references: [id])
+  orderId   Int
+  genera    Genus[]
+}
+
+model Genus { // AviList Taxon_rank="genus"
+  id        Int     @id @default(autoincrement())
+  name      String  @unique
+  family    Family  @relation(fields: [familyId], references: [id])
+  familyId  Int
+  species   Species[]
+}
+
+model Language { // ebird_names; wikidata_data: labels
+  id            Int     @id @default(autoincrement())
+  code          String  @unique // init_data.json common_names key
+  name          String?
+  speciesNames  SpeciesName[]
+  extracts      WikipediaExtract[]
+}
+
+enum IUCNCategory {
+  EX
+  EW
+  CR
+  EN
+  VU
+  NT
+  LC
+}
+
+model Species { // AviList Taxon_rank="species" OR "subspecies" IF HAS "English_name_AviList"
+  id              Int                 @id @default(autoincrement())
+  scientificName  String              @unique
+  genus           Genus               @relation(fields: [genusId], references: [id])
+  genusId         Int
+  range           String?             // AviList: Range
+  IUCN            IUCNCategory?       // AviList: IUCN_Red_List_Category, Extinct_or_possibly_extinct; init_data: extinct
+  cornellLabCode  String?             //AviList: Species_code_Cornell_Lab
+  avibaseId       String?             // AviList: AvibaseID OR wikidata_data: avibase_id
+  inatId          Int?                // init_data: inat_id
+  ebirdCode       String?             // ebird_data: ebird_code OR wikidata_data: ebird_code
+  gbifId          Int?                // wikidata_data: gbif_id
+  ncbiId          Int?                // wikidata_data: ncbi_id
+  birdlifeId      Int?                // wikidata_data: birdlife_id
+  macaulayCode    String?             // macaulay_data: ml_taxon_code
+  images          Image[]
+  resourceUrls    ResourceUrl[]
+  names           SpeciesName[]
+  extracts        WikipediaExtract[]
+  size            Json                @default("{ \"length\": {}, \"wingspan\": {}, \"weight\": {} }")
+}
+
+model Resource { // BirdLife DataZone, Birds of the World, Wikipedia
+  id      Int     @id @default(autoincrement())
+  name    String  @unique
+  resourceUrls    ResourceUrl[]
+}
+
+model ResourceUrl { // AviList: BirdLife_DataZone_URL, Birds_of_the_World_URL; init_data: wikipedia_url
+  id          Int       @id @default(autoincrement())
+  resource    Resource  @relation(fields: [resourceId], references: [id])
+  resourceId  Int
+  species     Species   @relation(fields: [speciesId], references: [id])
+  speciesId   Int
+  url         String
+}
+
+model SpeciesName { // ebird_names (key: ebird_data: ebird_code); wikidata_data: labels
+  id          Int       @id @default(autoincrement())
+  species     Species   @relation(fields: [speciesId], references: [id])
+  speciesId   Int
+  language    Language  @relation(fields: [languageId], references: [id])
+  languageId  Int
+  name        String  // AviList: English_name_AviList
+}
+
+// wikidata_data: image => url, attribution, license, license_url
+// init_data: IF image_license IS NOT NULL image_url, image_attribution, image_license OR obs_photo => url, attribution, license
+// wikipedia_data: image_url; license: https://commons.wikimedia.org/wiki/File:File_name.jpg
+// init_data: image_url, image_attribution, image_license OR obs_photo => url, attribution, license
+model Image {
+  id          Int       @id @default(autoincrement())
+  url         String
+  license     String
+  license_url String
+  attribution String
+  species     Species   @relation(fields: [speciesId], references: [id])
+  speciesId   Int
+}
+
+model WikipediaExtract { // wikipedia_data: wikipedia_urls, extracts
+  id          Int       @id @default(autoincrement())
+  species     Species   @relation(fields: [speciesId], references: [id])
+  speciesId   Int
+  language    Language  @relation(fields: [languageId], references: [id])
+  languageId  Int
+  text        String
+  url         String
+}

@@ -1,7 +1,7 @@
 import Image from "next/image";
 import React, { useReducer, useEffect } from "react";
 import { mockSpecies } from "./mock_data/mock_species"
-import { SpeciesData, SizeData, SpeciesActionKind, SpeciesAction } from "./types/common_types";
+import { SpeciesData, SizeData, SpeciesActionKind, SpeciesAction } from "./common/types";
 
 type SpeciesContainerProps = {
   // selectedSpecies: number[]
@@ -66,10 +66,10 @@ const SpeciesContainer = (props: SpeciesContainerProps) => {
           {s.images?.[0]?.url && (
             <div className="species-image">
               <a
-                href={s.images[0].license}
+                href={s.images[0].license_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                title="Click to view image license"
+                title="Click to view image license_url"
               >
                 <Image
                   src={s.images[0].url}
