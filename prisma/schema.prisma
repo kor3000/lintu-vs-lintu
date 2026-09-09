@@ -1,5 +1,4 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
+// Prisma database schema
 
 generator client {
   provider = "prisma-client"
@@ -37,7 +36,7 @@ model Language { // ebird_names; wikidata_data: labels
   code          String  @unique // init_data.json common_names key
   name          String?
   speciesNames  SpeciesName[]
-  extracts      WikipediaExtract[]
+  resourceUrls  ResourceUrl[]
 }
 
 enum IUCNCategory {
@@ -50,48 +49,54 @@ enum IUCNCategory {
   LC
 }
 
-model Species { // AviList Taxon_rank="species" OR "subspecies" IF HAS "English_name_AviList"
-  id              Int                 @id @default(autoincrement())
-  scientificName  String              @unique
-  genus           Genus               @relation(fields: [genusId], references: [id])
-  genusId         Int
-  range           String?             // AviList: Range
-  IUCN            IUCNCategory?       // AviList: IUCN_Red_List_Category, Extinct_or_possibly_extinct; init_data: extinct
-  cornellLabCode  String?             //AviList: Species_code_Cornell_Lab
-  avibaseId       String?             // AviList: AvibaseID OR wikidata_data: avibase_id
-  inatId          Int?                // init_data: inat_id
-  ebirdCode       String?             // ebird_data: ebird_code OR wikidata_data: ebird_code
-  gbifId          Int?                // wikidata_data: gbif_id
-  ncbiId          Int?                // wikidata_data: ncbi_id
-  birdlifeId      Int?                // wikidata_data: birdlife_id
-  macaulayCode    String?             // macaulay_data: ml_taxon_code
-  images          Image[]
-  resourceUrls    ResourceUrl[]
-  names           SpeciesName[]
-  extracts        WikipediaExtract[]
-  size            Json                @default("{ \"length\": {}, \"wingspan\": {}, \"weight\": {} }")
+model Species { // AviList Taxon_rank="species" OR "subspecies"
+  id                Int                 @id @default(autoincrement())
+  scientificName    String              @unique // AviList: Scientific_name
+  protonym          String?             // AviList: Protonym to lower case; used as alternative match
+  genus             Genus               @relation(fields: [genusId], references: [id])
+  genusId           Int
+  range             String?             
+  IUCN              IUCNCategory?       // AviList: IUCN_Red_List_Category, Extinct_or_possibly_extinct; init_data: extinct; If none, from parent species
+  cornellLabCode    String?             // AviList: Species_code_Cornell_Lab
+  avibaseId         String?             // AviList: AvibaseID OR wikidata_data: avibase_id
+  inatId            Int?                // init_data: inat_id
+  ebirdCode         String?             // ebird_data: ebird_code OR wikidata_data: ebird_code
+  gbifId            Int?                // wikidata_data: gbif_id
+  ncbiId            Int?                // wikidata_data: ncbi_id
+  birdlifeId        Int?                // wikidata_data: birdlife_id
+  macaulayCode      String?             // macaulay_data: ml_taxon_code
+  images            Image[]
+  resourceUrls      ResourceUrl[]
+  names             SpeciesName[]
+  parentSpecies     Species?            @relation("Subspecies", fields: [parentSpeciesId], references: [id], onDelete: SetNull)
+  parentSpeciesId   Int?
+  subspecies        Species[]           @relation("Subspecies")
+  size              Json                @default("{ \"length\": {}, \"wingspan\": {}, \"weight\": {} }")
+  data              Json?               // AviList: Range, Type_locality; wikipedia_extract
 }
 
-model Resource { // BirdLife DataZone, Birds of the World, Wikipedia
+model Resource { // BirdLife DataZone, Birds of the World, Wikipedia, Biodiversity Library
   id      Int     @id @default(autoincrement())
   name    String  @unique
   resourceUrls    ResourceUrl[]
 }
 
-model ResourceUrl { // AviList: BirdLife_DataZone_URL, Birds_of_the_World_URL; init_data: wikipedia_url
+model ResourceUrl { // AviList: BirdLife_DataZone_URL, Birds_of_the_World_URL, Original_description_URL; init_data: wikipedia_url
   id          Int       @id @default(autoincrement())
   resource    Resource  @relation(fields: [resourceId], references: [id])
   resourceId  Int
-  species     Species   @relation(fields: [speciesId], references: [id])
+  species     Species   @relation(fields: [speciesId], references: [id], onDelete: Cascade)
   speciesId   Int
   url         String
+  language    Language? @relation(fields: [languageId], references: [id])
+  languageId  Int?
 }
 
 model SpeciesName { // ebird_names (key: ebird_data: ebird_code); wikidata_data: labels
   id          Int       @id @default(autoincrement())
-  species     Species   @relation(fields: [speciesId], references: [id])
+  species     Species   @relation(fields: [speciesId], references: [id], onDelete: Cascade)
   speciesId   Int
-  language    Language  @relation(fields: [languageId], references: [id])
+  language    Language  @relation(fields: [languageId], references: [id], onDelete: Cascade)
   languageId  Int
   name        String  // AviList: English_name_AviList
 }
@@ -106,16 +111,6 @@ model Image {
   license     String
   license_url String
   attribution String
-  species     Species   @relation(fields: [speciesId], references: [id])
+  species     Species   @relation(fields: [speciesId], references: [id], onDelete: Cascade)
   speciesId   Int
-}
-
-model WikipediaExtract { // wikipedia_data: wikipedia_urls, extracts
-  id          Int       @id @default(autoincrement())
-  species     Species   @relation(fields: [speciesId], references: [id])
-  speciesId   Int
-  language    Language  @relation(fields: [languageId], references: [id])
-  languageId  Int
-  text        String
-  url         String
 }

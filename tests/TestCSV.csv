@@ -1,0 +1,8 @@
+Sequence;Taxon_rank;Order;Family;Scientific_name;English_name_AviList;Range;Extinct_or_possibly_extinct;IUCN_Red_List_Category;BirdLife_DataZone_URL;Species_code_Cornell_Lab;Birds_of_the_World_URL;AvibaseID;Type_locality;Original_description_URL;Protonym
+1;order;TEST-Order;;TEST-Order;;;;;;;;;;;
+2;family;TEST-Order;TEST-Family;TEST-Family;;;;;;;;;;;
+3;genus;TEST-Order;TEST-Family;TEST-Mythicus;;;;;;;;;;https://www.test.org/item/phoenix;Mythicus
+4;species;TEST-Order;TEST-Family;TEST-Mythicus phoenicus;TEST-Common phoenix;Mediterranean;;LC;https://datazone.testlife.org/species/factsheet/1;compho1;https://testsoftheworld.org/bow/species/compho1/;TEST-avibase-1;Ancient Greece;https://www.test.org/item/phoenix;Mythicus phoenicus
+5;subspecies;TEST-Order;TEST-Family;TEST-Mythicus phoenicus bennu;;;Extinct;;;compho2;;TEST-avibase-2;Ancient Egypt;https://www.test.org/item/bennu;Mythicus phoenicus bennu
+6;genus;TEST-Order;TEST-Family;TEST-Fantasticus;;;;;;;;;;;Fantasticus
+7;species;TEST-Order;TEST-Family;TEST-Fantasticus thorondorus;TEST-Common phoenix;Middle Earth;;VU;https://datazone.testlife.org/species/factsheet/3;thorond1;https://testsoftheworld.org/bow/species/thorond1/;TEST-avibase-3;;https://www.test.org/item/thorondor;Fantasticus thorondorus
