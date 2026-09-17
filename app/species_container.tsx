@@ -1,53 +1,71 @@
 import Image from "next/image";
-import React, { useReducer, useEffect } from "react";
-import { mockSpecies } from "./mock_data/mock_species"
-import { SpeciesData, SizeData, SpeciesActionKind, SpeciesAction } from "./common/types";
+import React, { useEffect } from "react";
+import { getSpeciesByIds } from "./actions";
+import { /*SizeData,*/ SpeciesActionKind, SpeciesAction } from "./common/types";
 
 type SpeciesContainerProps = {
   // selectedSpecies: number[]
   speciesAction: SpeciesAction | null;
   changeSpecies: (id: number) => void;
+  nameLang: string;
 }
 
-const speciesReducer = (state: SpeciesData[], action: SpeciesAction) => {
-  const newState = [...state];
+type DatabaseSpecies = Awaited<ReturnType<typeof getSpeciesByIds>>[number];
+type SpeciesStateAction =
+  | { type: "add"; species: DatabaseSpecies }
+  | { type: "remove"; id: number };
 
-  if (action.type === SpeciesActionKind.ADD) {
-    // console.log('adding', action.id);
-    const newSpecies = mockSpecies.find((s) => s.id === action.id);
-    if (newSpecies) newState.push(newSpecies);
-  } else {
-    const idx = newState.findIndex((s) => s.id === action.id);
-    // console.log('removing', action.id, idx);
-    if (idx !== -1) newState.splice(idx, 1);
+const speciesReducer = (
+  state: DatabaseSpecies[],
+  action: SpeciesStateAction
+) => {
+  if (action.type === "remove") {
+    return state.filter((species) => species.id !== action.id);
   }
 
-  return newState;
+  return state.some((species) => species.id === action.species.id)
+    ? state
+    : [...state, action.species];
 };
 
 const SpeciesContainer = (props: SpeciesContainerProps) => {
-  const [speciesState, dispatch] = useReducer(speciesReducer, []);
-  // const testSpecies: SpeciesData[] = mockSpecies;
+  const [speciesState, dispatch] = React.useReducer(speciesReducer, []);
+
+  const nameLang = props.nameLang;
 
   useEffect(() => {
     if (!props.speciesAction) return;
 
-    dispatch(props.speciesAction);
-  }, [props.speciesAction]);
+    if (props.speciesAction.type === SpeciesActionKind.REMOVE) {
+      dispatch({ type: "remove", id: props.speciesAction.id });
+      return;
+    }
 
-  const renderSizeData = (type: string, size: SizeData | undefined) => {
+    getSpeciesByIds([props.speciesAction.id], nameLang).then((species) => {
+      if (species.length === 0) return;
+      dispatch({ type: "add", species: species[0] });
+    });
+  }, [props.speciesAction, nameLang]);
+
+  /*const renderSizeData = (type: string, size: SizeData | undefined) => {
     const label = <b>{type}:</b>;
     const value = size
       ? `${size.min}–${size.max} ${size.unit}`
       : <span className="not-available">(not available)</span>;
 
     return <p>{label} {value}</p>;
-  }
+  }*/
 
   const renderSpecies = () => {
     return speciesState.map((s) => {
-      const key = `bird-${s.species}`;
-      const nameLatin = `${s.genus} ${s.species}`;
+      const key = `bird-${s.id}`;
+      const nameLatin = s.scientificName;
+      const name = s.names[0]?.name ?? nameLatin;
+      /*const size = s.size as {
+        length?: SizeData;
+        wingspan?: SizeData;
+        weight?: SizeData;
+      };*/
       return (
         <div key={key} className="species-container">
           <div className="species-name-container">
@@ -59,21 +77,21 @@ const SpeciesContainer = (props: SpeciesContainerProps) => {
               <p>✕</p>
             </div>
             <div className="species-name">
-              <h1>{s.name_eng}</h1>
+              <h1>{name}</h1>
               <h2><i>({nameLatin})</i></h2>
             </div>
           </div>
-          {s.images?.[0]?.url && (
+          {s.images[0]?.url && (
             <div className="species-image">
               <a
-                href={s.images[0].license_url}
+                href={s.images[0].license.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                title="Click to view image license_url"
+                title={`${s.images[0].attribution}. Click to view license.`}
               >
                 <Image
                   src={s.images[0].url}
-                  alt={`${s.name_eng} (${nameLatin})`}
+                  alt={`${name} (${nameLatin})`}
                   fill
                   style={{ objectFit: "cover", objectPosition: "center" }}
                   sizes="35vw"
@@ -85,17 +103,17 @@ const SpeciesContainer = (props: SpeciesContainerProps) => {
             Scientific classification
           </div>
           <div className="species-content">
-            <p><b>Family:</b> {s.family}</p>
-            <p><b>Order:</b> {s.order}</p>
+            <p><b>Family:</b> {s.genus.family.name}</p>
+            <p><b>Order:</b> {s.genus.family.order.name}</p>
           </div>
-          <div className="species-subheader">
+          {/*<div className="species-subheader">
             Size
           </div>
           <div className="species-content">
-            {renderSizeData("Length", s.length)}
-            {renderSizeData("Wingspan", s.wingspan)}
-            {renderSizeData("Weight", s.weight)}
-          </div>
+            {renderSizeData("Length", size.length)}
+            {renderSizeData("Wingspan", size.wingspan)}
+            {renderSizeData("Weight", size.weight)}
+          </div>*/}
         </div>
       )
     })

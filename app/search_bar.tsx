@@ -1,45 +1,42 @@
 import React, { useEffect, useRef, useState } from "react";
-import { classifications, mockSpecies } from "./mock_data/mock_species"
+import { getOrderOptions, getFamilyOptions, getSearchOptions } from "./actions";
 
-type SearchOption = {
-  id: number;
-  name: string;
-  family: string;
-}
-
-const searchOptions: SearchOption[] = mockSpecies.map((s) => {
-  return {
-      id: s.id,
-      name: `${s.name_eng} (${s.genus} ${s.species})`,
-      family: s.family
-    }
-});
-
-type FamilyOption = {
-  orderName: string;
-  familyName: string;
-}
-
-const familyOptions: FamilyOption[] = [];
-classifications.forEach((c) => {
-  c.families.forEach((f) => {
-    familyOptions.push({
-      orderName: c.name,
-      familyName: f.name
-    });
-  });
-});
+type DatabaseOrders = Awaited<ReturnType<typeof getOrderOptions>>;
+type DatabaseFamilies = Awaited<ReturnType<typeof getFamilyOptions>>;
+type DatabaseSearchOptions = Awaited<ReturnType<typeof getSearchOptions>>;
 
 type SearchBarProps = {
   changeSpecies: (id: number) => void;
+  nameLang: string;
 };
 
 const SearchBar = (props: SearchBarProps) => {
   const [searchInput, setSearchInput] = useState<string>('');
-  const [filterOptions, setFilterOptions] = useState<SearchOption[]>([]);
+  const [filterOptions, setFilterOptions] = useState<DatabaseSearchOptions>([]);
+  const [orderOptionsLoaded, setOrderOptionsLoaded] = useState<boolean>(false);
+  const [orderOptions, setOrderOptions] = useState<DatabaseOrders>([]);
+  const [selectedOrder, setSelectedOrder] = useState<number>(-1);
+  const [familyOptionsLoaded, setFamilyOptionsLoaded] = useState<boolean>(false);
+  const [familyOptions, setFamilyOptions] = useState<DatabaseFamilies>([]);
   const [showFilterOptions, setShowFilterOptions] = useState<boolean>(true);
-  const [selectedFamily, setSelectedFamily] = useState<string>('');
+  const [selectedFamily, setSelectedFamily] = useState<number>(-1);
   const searchInputRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    getOrderOptions().then((orders) => {
+      setOrderOptions(orders);
+      setOrderOptionsLoaded(true);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (selectedOrder === -1) return;
+
+    getFamilyOptions(selectedOrder).then((families) => {
+      setFamilyOptions(families);
+      setFamilyOptionsLoaded(true);
+    });
+  }, [selectedOrder]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -57,15 +54,25 @@ const SearchBar = (props: SearchBarProps) => {
     };
   }, []);
 
-  const updateFilterOptions = (searchValue: string, familyValue: string) => {
-    setFilterOptions(
-      searchOptions.filter((opt) => {
-        const matchesName = opt.name.toLowerCase().includes(searchValue.toLowerCase());
-        const matchesFamily = familyValue === '' || opt.family === familyValue;
-        return matchesName && matchesFamily;
-      })
-    );
-  };
+  useEffect(() => {
+    const searchValue = searchInput.trim();
+    if (searchValue === '') {
+      return;
+    }
+
+    const timeoutId = setTimeout(() => {
+      getSearchOptions(
+        searchValue,
+        props.nameLang,
+        selectedOrder === -1 ? undefined : selectedOrder,
+        selectedFamily === -1 ? undefined : selectedFamily
+      ).then((species) => {
+        setFilterOptions(species);
+      });
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchInput, selectedOrder, selectedFamily, props.nameLang]);
 
   const listFilterOptions = () => {
     if (!showFilterOptions || searchInput === '' || filterOptions.length === 0)
@@ -81,7 +88,10 @@ const SearchBar = (props: SearchBarProps) => {
                 title="Add to comparison"
                 onMouseUp={() => props.changeSpecies(opt.id)}
               >
-                {opt.name}
+                {opt.names[0]
+                  ? `${opt.names[0].name} (${opt.scientificName})`
+                  : opt.scientificName
+                }
                 <div className="select-button">+</div>
               </div>
             </li>
@@ -91,24 +101,73 @@ const SearchBar = (props: SearchBarProps) => {
     );
   };
 
+  const renderSpinner = (label: string) => (
+    <div className="spinner-container">
+      <span className="search-spinner" role="status" aria-label={label} />
+    </div>
+  );
+
+  const renderOrderDropdown = () => {
+    if (!orderOptionsLoaded) {
+      return renderSpinner('Loading orders');
+    }
+
+    return(
+      <select
+        value={selectedOrder}
+        onChange={(e) => {
+          const orderValue = e.target.value;
+          const orderId = orderValue === '' ? -1 : Number(orderValue);
+          setFamilyOptionsLoaded(false);
+          setSelectedOrder(orderId);
+          setFilterOptions([]);
+        }}
+      >
+          <option value="-1">All orders</option>
+          {orderOptions.map((o) => (
+            <option key={`order-option-${o.id}`} value={o.id}>
+            {o.name}
+          </option>
+        ))}
+      </select>
+    );
+  }
+
+  const renderFamilyDropdown = () => {
+    if (selectedOrder !== -1 && !familyOptionsLoaded) {
+      return renderSpinner('Loading families');
+    }
+
+    return(
+      <select
+        value={selectedFamily}
+        disabled={selectedOrder === -1}
+        onChange={(e) => {
+          const familyValue = e.target.value;
+          const familyId = familyValue === '' ? -1 : Number(familyValue);
+          setSelectedFamily(familyId);
+            setFilterOptions([]);
+        }}
+      >
+          <option value="-1">All families</option>
+          {familyOptions.map((f) => (
+            <option key={`family-option-${f.id}`} value={f.id}>
+              {f.name}
+            </option>
+        ))}
+      </select>
+    );
+  };
+
   return (
     <div className="search-widget">
-      <div className="search-dropdown">
-        <select
-          value={selectedFamily}
-          onChange={(e) => {
-            const familyValue = e.target.value;
-            setSelectedFamily(familyValue);
-            updateFilterOptions(searchInput, familyValue);
-          }}
-        >
-          <option value="">All families</option>
-          {familyOptions.map((f, i) => (
-            <option key={`family-option-${i}`} value={f.familyName}>
-              {f.orderName} / {f.familyName}
-            </option>
-          ))}
-        </select>
+      <div className="dropdown-container">
+        <div className="search-dropdown">
+          {renderOrderDropdown()}
+        </div>
+        <div className="search-dropdown">
+          {renderFamilyDropdown()}
+        </div>
       </div>
       <div className="search-input" ref={searchInputRef}>
         <input
@@ -118,7 +177,7 @@ const SearchBar = (props: SearchBarProps) => {
           onChange={(e) => {
             const v = e.target.value;
             setSearchInput(v);
-            updateFilterOptions(v, selectedFamily);
+            setFilterOptions([]);
           }}
         />
         {listFilterOptions()}

@@ -6,7 +6,8 @@ const nextConfig: NextConfig = {
       {
         protocol: "https",
         hostname: "upload.wikimedia.org"
-      }
+      },
+      new URL('https://inaturalist-open-data.**.amazonaws.com/photos/**/large.jpg')
     ]
   }
 };

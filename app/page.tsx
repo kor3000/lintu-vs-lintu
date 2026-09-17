@@ -7,6 +7,8 @@ import SpeciesContainer from "./species_container";
 import SearchBar from "./search_bar";
 import { SpeciesActionKind, SpeciesAction } from "./common/types";
 
+const commonNameLang = 'fi';
+
 export default function Home() {
   const [selectedSpecies, setSelectedSpecies] = useState<number[]>([]);
   const [lastSpeciesAction, setlastSpeciesAction] = useState<SpeciesAction | null>(null);
@@ -34,6 +36,7 @@ export default function Home() {
       <div className="search-container">
         <SearchBar
           changeSpecies={changeSelectedSpecies}
+          nameLang={commonNameLang}
         />
       </div>
       <div className="data-container">
@@ -41,6 +44,7 @@ export default function Home() {
           // selectedSpecies={selectedSpecies}
           speciesAction={lastSpeciesAction}
           changeSpecies={changeSelectedSpecies}
+          nameLang={commonNameLang}
         />
       </div>
     </div>

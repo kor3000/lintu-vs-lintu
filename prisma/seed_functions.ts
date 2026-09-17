@@ -4,18 +4,17 @@ import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import locale from 'locale-codes';
 import Papa, { ParseResult } from 'papaparse';
-
 import prisma from "../client";
-import { IUCNCategory, Language, Resource, Species, Genus } from "@prisma/client"
+import { IUCNCategory, Language, Resource, Species, Genus, ImageLicense, Image } from "../generated/prisma/client"
 import { capitalize, firstOrCreate } from "../app/common/utils";
 
 type LanguageMap =  {
   [key: string]: Language;
-}
+};
 
 type ResourceMap = {
   [key: string]: Resource;
-}
+};
 
 type ParsedCSVRow = {
   Taxon_rank: string;
@@ -33,13 +32,13 @@ type ParsedCSVRow = {
   Birds_of_the_World_URL: string;
   Original_description_URL: string;
   [key: string]: string;
-}
+};
 
 type SpeciesLocality = {
   range?: string;
   type_locality?: string;
   wikipedia_extract?: string;
-}
+};
 
 type SpeciesCreate = {
   genus: { connect: { id: number }}
@@ -49,7 +48,7 @@ type SpeciesCreate = {
   avibaseId?: string;
   IUCN?: IUCNCategory | null;
   parentSpecies?: { connect: { id: number }}
-}
+};
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -116,6 +115,36 @@ export const readAviList = async (cap = 0) => {
   }
 };
 
+export const readJsonFile = async (fileName: string, cap = 0) => {
+  console.log(`Reading JSON file ${fileName}`);
+  const filePath = `${rawDataDir}${fileName}.json`;
+
+  try {
+    const file = await readFile(filePath);
+    if (!file) {
+      console.error(`File "${fileName}" returned no content`);
+      return;
+    }
+
+    const json = await JSON.parse(file);
+    const limit = (cap > 0) ? cap : Object.keys(json).length;
+
+    switch (fileName) {
+      case 'inat_data': {
+        console.log('Parsint INat data');
+        await handleInatData(json, limit);
+        break;
+      }
+    }
+  } catch (e: unknown) {
+    if (e instanceof SyntaxError) {
+      console.error(`Invalid JSON in file "${fileName}":\n${e}`);
+    } else {
+      console.error(`Error reading file "${fileName}":\n${e}`);
+    }
+  } 
+};
+
 export const parseCSV = (fileAsStr: string) => {
   return Papa.parse<ParsedCSVRow>(fileAsStr, {
     header: true,
@@ -133,9 +162,11 @@ export const parseCSV = (fileAsStr: string) => {
 
 const verifyIUCNCategory = (iucnStr: string | null, extinct?: string) => {
   const iucn = iucnStr?.trim().toUpperCase().split(' ')[0];
+
   if (iucn && Object.hasOwn(IUCNCategory, iucn)) {
     return IUCNCategory[iucn as keyof typeof IUCNCategory];
   }
+
   if (!extinct) return null;
 
   switch (extinct?.trim().toLowerCase()) {
@@ -148,7 +179,7 @@ const verifyIUCNCategory = (iucnStr: string | null, extinct?: string) => {
     case 'extinct in the wild':
       return IUCNCategory.EW;
     default:
-      console.warn(`Unrecognized extinction status: ${iucn}`);
+      console.warn(`Unrecognized extinction status "${extinct}" and IUCN category ${iucnStr}`);
       return null;
   }
 }
@@ -261,6 +292,226 @@ export const handleAviListRow = async (row: ParsedCSVRow) => {
   console.warn(`No action taken for AviList row ${sciName}`);
 };
 
+type ImageData = {
+  url: string;
+  attribution: string;
+  license: string | null;
+};
+
+type InatItem = {
+  inat_id: number;
+  taxon_group: string;
+  iconic_taxon_name: string;
+  common_names: { [key: string]: string }
+  wikipedia_url: string;
+  image_url: string;
+  image_attribution: string;
+  image_license: string | null;
+  observations_count: number;
+  sound_observations_count: number;
+  preferred_common_name: string;
+  extinct: boolean
+  obs_photo?: ImageData;
+  obs_photo_lookup?: {
+    status: string;
+    checked_at: string;
+  };
+}
+
+type InatData = {
+  [key: string]: InatItem;
+};
+
+type InatUpdateData = {
+  inatId: number;
+  IUCN?: IUCNCategory;
+};
+
+/**
+ * Iterates through the items in a parsed INat JSON
+ * @param {InatData} inatData - Scientific name of species
+ * @param {number} cap - limit for number of iterations
+ */
+const handleInatData = async (inatData: InatData, limit: number) => {
+  let i = 0;
+  for (const key in inatData) {
+    if (i > limit) break;
+
+    await handleInatItem(key, inatData[key]);
+    i += 1;
+  }
+};
+
+/**
+ * Updates species data and creates image and name instances for it based on INat data
+ * @param {string} speciesName - Scientific name of species
+ * @param {InatItem} item - parsed INat data
+ */
+export const handleInatItem = async (speciesName: string, item: InatItem) => {
+  console.log(`Updating species ${speciesName}`);
+  const species = await prisma.species.findFirst({
+    where: {
+      OR: [
+        { scientificName: { equals: speciesName, mode: "insensitive" }},
+        { protonym: { equals: speciesName, mode: "insensitive" }}
+      ] 
+    }
+  });
+
+  if (!species) {
+    console.warn(`No species with the name ${speciesName} found. Skipping.`);
+    return;
+  }
+
+  // Update species data
+  const updateData: InatUpdateData = { inatId: item.inat_id };
+  if (item.extinct && !species.IUCN) {
+    updateData.IUCN = IUCNCategory.EX;
+  }
+
+  await prisma.species.update({ where: { id: species.id }, data: updateData });
+
+  // Create images
+  const images: ImageData[] = [];
+
+  if (item.image_license) {
+    images.push({
+      url: item.image_url,
+      attribution: item.image_attribution,
+      license: item.image_license
+    });
+  }
+  if (item.obs_photo?.license) {
+    images.push(item.obs_photo);
+  }
+
+  for (const img of images) {
+    await createImage(img, species);
+  }
+
+  // Create names
+  await createNames(item.common_names, species, true);
+};
+
+/**
+ * Creates names for a species in various languages
+ * @param {{ [key: string]: string }} names - hash with language codes as keys and species names as values
+ * @param {Species} species
+ * @param {boolean} doTransform - whether to transform certain language code tags
+ */
+export const createNames = async (names: { [key: string]: string }, species: Species, doTransform: boolean = false) => {
+  for (const key in names) {
+    const lang = await getOrCreateLanguage(key, doTransform);
+    if (!lang) continue;
+
+    const whereProps = {
+      speciesId: species.id,
+      languageId: lang.id
+    };
+
+    await firstOrCreate(
+      prisma.speciesName,
+      whereProps,
+      { name: names[key] }
+    );
+  }
+}
+
+/**
+ * Creates a new Image instance
+ * @param {ImageData} imageData - hash detailing the url, attribution, and license of an image
+ * @param {Species} species
+ * @returns {Promise<Image | null>}
+ */
+const createImage = async (imageData: ImageData, species: Species): Promise<Image | null> => {
+  if (!imageData.license) {
+    console.warn('Cannot create due to missing license:', imageData.url);
+    return null;
+  }
+
+  const license = await getOrCreateImageLicense(imageData.license);
+
+  if (!license) {
+    console.error('Failure to get license for image:', imageData.url);
+    return null;
+  }
+
+  const whereData = {
+    url: imageData.url,
+    speciesId: species.id,
+    licenseId: license.id
+  };
+  const createData = {
+    attribution: imageData.attribution
+  };
+
+  return await firstOrCreate(
+    prisma.image,
+    whereData,
+    createData
+  ) as Image;
+};
+
+const imageLicenses: ImageLicense[] = [];
+
+/**
+ * Creates a new ImageLicense instance or returns an existing one
+ * @param {string} baseName - license identifier from INat or Wikidata
+ * @returns {Promise<ImageLicense | null>}
+ */
+export const getOrCreateImageLicense = async (baseName: string): Promise<ImageLicense | null> => {
+  // Name formats: "cc-by-nc-nd" (INat), "CC BY-SA 4.0" (Wikidata)
+  const name = baseName.trim().toUpperCase().replace('CC-', 'CC ');
+  const license = imageLicenses.find((l) => l.name === name);
+  if (license) return license;
+
+  const nameSplit = name.split(' ');
+  const firstVal = nameSplit[0];
+
+  if (!firstVal.startsWith('CC') && firstVal !== 'PD') {
+    console.error(`Invalid image license name "${name}". Cannot create license.`);
+    return null;
+  }
+
+  let url: string | null = null;
+  
+  switch (nameSplit[0]) {
+    case 'CC0':
+      url = 'https://creativecommons.org/publicdomain/zero/1.0/';
+      break;
+    case 'PD':
+      url = 'https://creativecommons.org/publicdomain/mark/1.0/';
+      break;
+    default: {
+      if (nameSplit.length > 1) {
+        url = `https://creativecommons.org/licenses/${nameSplit[1].toLowerCase()}/`;
+      }
+    }
+  }
+
+  if (!url) {
+    console.error(`Couldn't create a URL for license "${baseName}"`);
+    return null;
+  }
+
+  if (nameSplit.length === 3) url = `${url}${nameSplit[2]}/`;
+
+  console.log(`Creating image license "${name}" with url: ${url}`);
+  const newLicense = await firstOrCreate(
+    prisma.imageLicense,
+    { name },
+    { url }
+  ) as ImageLicense;
+
+  if (newLicense) imageLicenses.push(newLicense);
+  else {
+    console.error(`Failed to create image license "${name}"`);
+    return null;
+  }
+
+  return newLicense;
+};
+
 // RESOURCES -->
 
 const aviListResourceNameMap = {
@@ -316,17 +567,133 @@ const createResourceUrl = async (
 
 // END RESOURCES
 
+// LANGUAGES -->
+
+// Correct disparities between language tagging systems
+// wikidata needs sr --> src
+const langCodeTransformations = {
+  'sr': 'src',
+  'nb': 'no',
+  'myn': 'yua'
+}
+
+// Local names missing from the locale-codes library
+const localNames = {
+  'an': 'aragonés',
+  'ang': 'Ænglisc sprǣc',
+  'arz': 'للغه المصريه الحديثه',
+  'ast': 'asturianu',
+  'atj': 'Atikamekw Nehiromowin',
+  'avk': 'Kotava',
+  'bn': 'বাংলা',
+  'ceb': 'Sinugboanon',
+  'chr': 'ᏣᎳᎩ ᎧᏬᏂᎯᏍᏗ',
+  'chy': 'Tsêhesenêstsestôtse',
+  'ckb': 'کوردیی ناوەندی',
+  'cs': 'čeština',
+  'cy': 'Cymraeg',
+  'de': 'Deutsch',
+  'dsb': 'dolnoserbšćina',
+  'el': 'ελληνικά',
+  'eu': 'Euskara',
+  'ext': 'Lengua estremeña',
+  'fa': 'فارسی',
+  'fil': 'Wikang Filipino',
+  'fr': 'français',
+  'frr': 'Nuurdfresk',
+  'fy': 'Frysk',
+  'haw': 'ʻōlelo Hawaiʻi',
+  'hsb': 'Hornjoserbšćina',
+  'hy': 'հայերեն',
+  'ie': 'Interlingue',
+  'inh': 'гӏалгӏай',
+  'io': 'Ido',
+  'is': 'íslenska',
+  'ka': 'ქართული ენა',
+  'kbd': 'Къэбэрдей',
+  'kk-arab': 'قازاق ٴتىلى',
+  'kk-cyrl': 'қазақ тілі',
+  'kk-latn': 'Qazaq tılı',
+  'ku-arab': 'کوردی',
+  'ku-latn': 'Kurdî',
+  'mg': 'Fiteny malagasy',
+  'mi': 'Māori',
+  'mk': 'македонски',
+  'mnc': 'ᠮᠠᠨᠵᡠ ᡤᡳᠰᡠᠨ',
+  'mni': 'ꯃꯤꯇꯩ ꯂꯣꯟ',
+  'mrj': 'Мары йӹлмӹ',
+  'my': 'မြန်မာဘာသာစကား',
+  'ms': 'Bahasa Melayu',
+  'nl': 'Nederlands',
+  'nn': 'nynorsk',
+  'no': 'norsk (bokmål)',
+  'nv': 'Diné bizaad',
+  'oc': 'lenga d\'òc',
+  'oj': 'Anishinaabemowin',
+  'olo': 'Livvinkarjala',
+  'pam': 'Kapampángan',
+  'pap': 'Papiamentu',
+  'pap-aw': 'Papiamento',
+  'pdc': 'Pennsylvanisch Deitsch',
+  'pms': 'Piemontèis',
+  'ro': 'limba română',
+  'sah': 'Саха тыла',
+  'sat': 'ᱥᱟᱱᱛᱟᱲᱤ',
+  'sco': 'Scots',
+  'se': 'davvisámegiella',
+  'sh': 'srpskohrvatski jezik',
+  'sk': 'slovenčina',
+  'sma': 'åarjelsaemiengïele',
+  'smn': 'anarâškielâ',
+  'sms': 'nuõʹrttsääʹmǩiõll',
+  'sw': 'Kiswahili',
+  'sq': 'shqip',
+  'sr': 'srpski',
+  'src': 'српски',
+  'udm': 'Удмурт кыл',
+  'war': 'Waray',
+  'wuu': '吴语',
+  'yua': 'mayaʼ tʼaan',
+  'yue': '粵語',
+  'zh': '中文',
+  'zh-cn': '汉语',
+  'zh-hans': '汉语',
+  'zh-hant': '漢語',
+  'zh-tw': '漢語',
+};
+
 const languageIds: LanguageMap = {};
 
 // Get language id based on code
-export const getOrCreateLanguage = async (code: string) => {
+/**
+ * Creates a new Language instance or returns an existing one
+ * @param {string} codeStr - language identifier from INat, eBird names, or Wikidata
+ * @param {boolean} doTransform - whether to transform certain language code tags
+ * @returns {Promise<Language | null>}
+ */
+export const getOrCreateLanguage = async (codeStr: string, doTransform: boolean = false): Promise<Language | null> => {
+  let code = codeStr.replace('_', '-');
+
+  if (doTransform && code in langCodeTransformations) {
+    code = langCodeTransformations[code as keyof typeof langCodeTransformations];
+  }
+
   const lang = languageIds[code];
   if (lang) return lang;
 
-  let name = locale.getByTag(code).local;
   const split = code.split('-');
+  let name =
+    locale.getByTag(code)?.local ||
+    localNames[code as keyof typeof localNames];
+  
+  if (!name) {
+    name =
+      locale.getByTag(split[0])?.local ||
+      localNames[split[0] as keyof typeof localNames] ||
+      `MISSING_LOCAL-${code}`;
+  }
 
-  if (split.length == 2) {
+  if (split.length == 2 && !['arab', 'cyrl', 'latn'].includes(split[1])) {
     name = `${name} (${capitalize(split[1])})`;
   }
 
@@ -338,8 +705,12 @@ export const getOrCreateLanguage = async (code: string) => {
   ) as Language;
 
   if (newLang) languageIds[code] = newLang;
-  else console.warn(`Failed to create language ${code}`);
+  else {
+    console.error(`Failed to create language ${code}`);
+    return null;
+  }
 
   return newLang;
 };
 
+// END LANGUAGES

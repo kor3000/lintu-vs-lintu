@@ -1,5 +1,5 @@
 import { expect, test, afterAll } from 'vitest'
-import { getOrCreateLanguage, readFile, parseCSV, handleAviListRow } from '../prisma/seed_functions'
+import { getOrCreateLanguage, readFile, parseCSV, handleAviListRow, getOrCreateImageLicense, handleInatItem } from '../prisma/seed_functions'
 import { deleteIfExists } from "../app/common/utils";
 import prisma from '../client'
 
@@ -10,6 +10,8 @@ const speciesName = 'TEST-Mythicus phoenicus';
 const subspeciesName = 'TEST-Mythicus phoenicus bennu';
 const genusName2 = 'TEST-Fantasticus';
 const speciesName2 = 'TEST-Fantasticus thorondorus';
+
+const mockInat = `{"${speciesName}":{"inat_id":111,"common_names":{"en":"Common Phoenix","fi":"feeniks"},"image_url":"https://url.com/photos/phnx.jpg","image_attribution":"(c) Kassandra, some rights reserved (CC BY-NC), uploaded by Kassandra","image_license":"cc-by-nc","preferred_common_name":"Common Phoenix","extinct":false},"${subspeciesName}":{"inat_id":112,"common_names":{"en":"Bennu","fi":"Benu-lintu"},"image_url":"https://url.com/photos/bnu.jpg","image_attribution":"(c) Bayek, some rights reserved (CC BY-SA)","image_license":"cc-by-sa","preferred_common_name":"Bennu","extinct":false,"obs_photo":{"url":"https://url.com/photos/bnu-obs.jpg","attribution":"(c) Aya, some rights reserved (CC BY-NC)","license":"cc-by-nc"}},"${speciesName}2":{"inat_id":221,"common_names":{"en":"Great Eagle","fi":"jättiläiskotka"},"image_url":"https://url.com/photos/gree.jpg","image_attribution":"(c) Pippin, all rights reserved","image_license":null,"preferred_common_name":"Thorondor","extinct":true}}`;
 
 afterAll(async () => {
   await deleteIfExists(prisma.language, { code: 'aa-DJ' });
@@ -28,7 +30,7 @@ test.skip('create language Afaraf (DJ)', async () => {
   expect(lang.name).toBe('Afaraf (DJ)');
 });
 
-test('extract species data from CSV', async () => {
+test('extract species data from AviList CSV', async () => {
   const file = await readFile('../tests/TestCSV.csv');
 
   const results = parseCSV(file);
@@ -73,3 +75,39 @@ test('extract species data from CSV', async () => {
   expect(species2.genusId).toBe(genus2.id);
 });
 
+test('create image license', async () => {
+  const l1 = await getOrCreateImageLicense('cc-by-nc-nd') || {};
+  const l2 = await getOrCreateImageLicense('CC BY-SA 4.0') || {};
+
+  console.log('licenses:', l1, l2);
+  expect(l1.name).toBe('CC BY-NC-ND');
+  expect(l2.url).toBe('https://creativecommons.org/licenses/by-sa/4.0/');
+});
+
+test('parse INat data', async () => {
+  const inat = JSON.parse(mockInat);
+
+  for (const key in inat) {
+    await handleInatItem(key, inat[key]);
+  }
+
+  const species = await prisma.species.findFirst({ where: { scientificName: speciesName }, include: { names: true, images: true }}) || {};
+  const species2 = await prisma.species.findFirst({ where: { scientificName: speciesName2 }, include: { names: true, images: true }}) || {};
+  const subspecies = await prisma.species.findFirst({ where: { scientificName: subspeciesName }, include: { names: true, images: true }}) || {};
+  const fi = await prisma.language.findFirst({ where: { code: 'fi' } });
+  const en = await prisma.language.findFirst({ where: { code: 'en' } });
+  const license = await prisma.imageLicense.findFirst({ where: { name: 'CC BY-NC' } });
+
+  expect(species.images?.length).toBe(1);
+  expect(species2.images?.length).toBe(0);
+  expect(subspecies.images?.length).toBe(2);
+
+  expect(species.images[0]?.licenseId).toBe(license.id);
+
+  const names = species.names || [];
+  const nameFi = names.find((n) => n.languageId === fi.id);
+  const nameEn = names.find((n) => n.languageId === en.id);
+  expect(names.length).toBe(2);
+  expect(nameFi.name).toBe('feeniks');
+  expect(nameEn.name).toBe('Common Phoenix');
+});

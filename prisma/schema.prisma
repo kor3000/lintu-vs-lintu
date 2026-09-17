@@ -88,7 +88,7 @@ model ResourceUrl { // AviList: BirdLife_DataZone_URL, Birds_of_the_World_URL, O
   species     Species   @relation(fields: [speciesId], references: [id], onDelete: Cascade)
   speciesId   Int
   url         String
-  language    Language? @relation(fields: [languageId], references: [id])
+  language    Language? @relation(fields: [languageId], references: [id], onDelete: Cascade)
   languageId  Int?
 }
 
@@ -101,6 +101,13 @@ model SpeciesName { // ebird_names (key: ebird_data: ebird_code); wikidata_data:
   name        String  // AviList: English_name_AviList
 }
 
+model ImageLicense {
+  id          Int       @id @default(autoincrement())
+  name        String
+  url         String
+  images      Image[]
+}
+
 // wikidata_data: image => url, attribution, license, license_url
 // init_data: IF image_license IS NOT NULL image_url, image_attribution, image_license OR obs_photo => url, attribution, license
 // wikipedia_data: image_url; license: https://commons.wikimedia.org/wiki/File:File_name.jpg
@@ -108,9 +115,9 @@ model SpeciesName { // ebird_names (key: ebird_data: ebird_code); wikidata_data:
 model Image {
   id          Int       @id @default(autoincrement())
   url         String
-  license     String
-  license_url String
   attribution String
   species     Species   @relation(fields: [speciesId], references: [id], onDelete: Cascade)
   speciesId   Int
+  license     ImageLicense  @relation(fields: [licenseId], references: [id], onDelete: Cascade)
+  licenseId   Int
 }
