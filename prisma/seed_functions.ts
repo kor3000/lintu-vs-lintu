@@ -534,7 +534,9 @@ export const createNames = async (names: { [key: string]: string }, species: Spe
   const transformSet = transformLang[source as keyof typeof transformLang] || {};
 
   for (const key in names) {
-    const code = transformSet[key as keyof typeof transformSet] || key;
+    let code = key.replace('_', '-').toLowerCase();
+    code = transformSet[key as keyof typeof transformSet] || key;
+
     const lang = await getOrCreateLanguage(code);
     if (!lang) continue;
 
@@ -743,12 +745,10 @@ const languageIds: LanguageMap = {};
 // Get language id based on code
 /**
  * Creates a new Language instance or returns an existing one
- * @param {string} codeStr - language identifier from INat, eBird names, or Wikidata
+ * @param {string} code - language identifier
  * @returns {Promise<Language | null>}
  */
-export const getOrCreateLanguage = async (codeStr: string): Promise<Language | null> => {
-  const code = codeStr.replace('_', '-').toLowerCase();
-
+export const getOrCreateLanguage = async (code: string): Promise<Language | null> => {
   const lang = languageIds[code];
   if (lang) return lang;
   

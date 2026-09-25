@@ -10,7 +10,8 @@ import { readAviList, readJsonFile } from "./seed_functions";
 * Add args after -- and prefix them with --, e.g.:
 *   npx prisma db seed -- --from 1000
 * 
-* It is highly recommended that AviList is parsed in full before proceeding to the other files as it serves as the basis of species taxonomy
+* It is highly recommended that AviList is parsed in full before proceeding to the other files as it serves as the basis of species taxonomy. E.g.:
+*   npx prisma db seed -- --endat avilist
 * 
 * Accepted args:
 * @argument {number} from - Item number from which to start parsing; 0 to n
@@ -53,10 +54,13 @@ const argToInt = (arg: string | undefined, type: string) => {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (e) {
     switch (type) {
-      case ('from'):
+      case 'from':
         console.log('No "from" argument received. Starting parsing from the first item in each list');
+        break;
+      case 'to':
+        console.log('No "to" argument received. End parsing from the last item in each list');
+        break;
     }
-    console.log(`No '${type}' argument parsed.`);
   }
 };
 
@@ -132,9 +136,12 @@ async function main() {
   console.log('\n\nAll seed operations run')
   console.log(`Total time elapsed: ${durationStr(endTime - startTime)}`);
   console.log('\nTime per operation:\n-----------');
-  console.log(`AviList:     ${durationStr(aviEnd - aviStart)}`);
-  console.log(`Wikidata:    ${durationStr(wikidataEnd - wikidataStart)}`);
-  console.log(`INat:        ${durationStr(iNatEnd - iNatStart)}`);
+  if (doAvilist)
+    console.log(`AviList:     ${durationStr(aviEnd - aviStart)}`);
+  if (doWikidata)
+    console.log(`Wikidata:    ${durationStr(wikidataEnd - wikidataStart)}`);
+  if (doInat)
+    console.log(`INat:        ${durationStr(iNatEnd - iNatStart)}`);
 
 }
 
