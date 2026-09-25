@@ -1,5 +1,5 @@
 import { expect, test, afterAll } from 'vitest'
-import { getOrCreateLanguage, readFile, parseCSV, handleAviListRow, getOrCreateImageLicense, handleInatItem } from '../prisma/seed_functions'
+import { getOrCreateLanguage, readFile, parseCSV, handleAviListRow, getOrCreateImageLicense, handleInatItem, handleWikidataItem } from '../prisma/seed_functions'
 import { deleteIfExists } from "../app/common/utils";
 import prisma from '../client'
 
@@ -11,10 +11,10 @@ const subspeciesName = 'TEST-Mythicus phoenicus bennu';
 const genusName2 = 'TEST-Fantasticus';
 const speciesName2 = 'TEST-Fantasticus thorondorus';
 
-const mockInat = `{"${speciesName}":{"inat_id":111,"common_names":{"en":"Common Phoenix","fi":"feeniks"},"image_url":"https://url.com/photos/phnx.jpg","image_attribution":"(c) Kassandra, some rights reserved (CC BY-NC), uploaded by Kassandra","image_license":"cc-by-nc","preferred_common_name":"Common Phoenix","extinct":false},"${subspeciesName}":{"inat_id":112,"common_names":{"en":"Bennu","fi":"Benu-lintu"},"image_url":"https://url.com/photos/bnu.jpg","image_attribution":"(c) Bayek, some rights reserved (CC BY-SA)","image_license":"cc-by-sa","preferred_common_name":"Bennu","extinct":false,"obs_photo":{"url":"https://url.com/photos/bnu-obs.jpg","attribution":"(c) Aya, some rights reserved (CC BY-NC)","license":"cc-by-nc"}},"${speciesName}2":{"inat_id":221,"common_names":{"en":"Great Eagle","fi":"jättiläiskotka"},"image_url":"https://url.com/photos/gree.jpg","image_attribution":"(c) Pippin, all rights reserved","image_license":null,"preferred_common_name":"Thorondor","extinct":true}}`;
+const mockWikidata = `{"${speciesName}":{"ebird_code":"fnx123","gbif_id":"123","ncbi_id":"456","birdlife_id":"789","labels":{"et":"Fööniks","cy":"Ffenics"},"image":{"url":"https://upload.wiki.org/d/phnx.jpg","attribution":"FooBar","license":"CC BY-SA 2.0","license_url":"https://"}}}`;
+const mockInat = `{"${speciesName}":{"inat_id":111,"common_names":{"en":"Common Phoenix","fi":"feeniks"},"image_url":"https://url.com/photos/phnx.jpg","image_attribution":"(c) Kassandra, some rights reserved (CC BY-NC), uploaded by Kassandra","image_license":"cc-by-nc","preferred_common_name":"Common Phoenix","extinct":false},"${subspeciesName}":{"inat_id":112,"common_names":{"en":"Bennu","fi":"Benu-lintu"},"image_url":"https://url.com/photos/bnu.jpg","image_attribution":"(c) Bayek, some rights reserved (CC BY-SA)","image_license":"cc-by-sa","preferred_common_name":"Bennu","extinct":false,"obs_photo":{"url":"https://url.com/photos/bnu-obs.jpg","attribution":"(c) Aya, some rights reserved (CC BY-NC)","license":"cc-by-nc"}},"${speciesName2}":{"inat_id":221,"common_names":{"en":"Great Eagle","fi":"jättiläiskotka"},"image_url":"https://url.com/photos/gree.jpg","image_attribution":"(c) Pippin, all rights reserved","image_license":null,"preferred_common_name":"Thorondor","extinct":true}}`;
 
 afterAll(async () => {
-  await deleteIfExists(prisma.language, { code: 'aa-DJ' });
   await deleteIfExists(prisma.species, { scientificName: subspeciesName });
   await deleteIfExists(prisma.species, { scientificName: speciesName });
   await deleteIfExists(prisma.species, { scientificName: speciesName2 });
@@ -97,17 +97,40 @@ test('parse INat data', async () => {
   const fi = await prisma.language.findFirst({ where: { code: 'fi' } });
   const en = await prisma.language.findFirst({ where: { code: 'en' } });
   const license = await prisma.imageLicense.findFirst({ where: { name: 'CC BY-NC' } });
+  const wikiImg = species.images?.find((img) => img.attribution?.startsWith('(c) Kassandra'));
 
-  expect(species.images?.length).toBe(1);
   expect(species2.images?.length).toBe(0);
   expect(subspecies.images?.length).toBe(2);
-
-  expect(species.images[0]?.licenseId).toBe(license.id);
+  expect(wikiImg?.licenseId).toBe(license?.id);
 
   const names = species.names || [];
-  const nameFi = names.find((n) => n.languageId === fi.id);
-  const nameEn = names.find((n) => n.languageId === en.id);
+  const nameFi = names.find((n) => n.languageId === fi?.id);
+  const nameEn = names.find((n) => n.languageId === en?.id);
   expect(names.length).toBe(2);
   expect(nameFi.name).toBe('feeniks');
   expect(nameEn.name).toBe('Common Phoenix');
+});
+
+test('parse Wikidata data', async () => {
+  const wikid = JSON.parse(mockWikidata);
+
+  for (const key in wikid) {
+    await handleWikidataItem(key, wikid[key]);
+  }
+
+  const species = await prisma.species.findFirst({ where: { scientificName: speciesName }, include: { names: true, images: true }}) || {};
+  const et = await prisma.language.findFirst({ where: { code: 'et' } });
+  const cy = await prisma.language.findFirst({ where: { code: 'cy' } });
+  const names = species.names || [];
+  const nameEt = names.find((n) => n.languageId === et?.id);
+  const nameCy = names.find((n) => n.languageId === cy?.id);
+  const wikiImg = species.images?.find((img) => img.attribution?.startsWith('(c) FooBar'));
+
+  expect(species.ebirdCode).toBe('fnx123');
+  expect(species.gbifId).toBe(123);
+  expect(species.ncbiId).toBe(456);
+  expect(species.birdlifeId).toBe(789);
+  expect(nameEt.name).toBe('Fööniks');
+  expect(nameCy.name).toBe('Ffenics');
+  expect(wikiImg).not.toBe(undefined);
 });

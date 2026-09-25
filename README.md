@@ -94,9 +94,9 @@ Create and seed the database with:
 ```bash
 npx prisma generate
 npx prisma db seed
-# Add limit flag to cap number of species created, e.g.:
-npx prisma db seed -- --limit 1000
-# See /prisma/seed.ts for more information on flags
+# You can use arguments to batch seeding, e.g.:
+npx prisma db seed -- --from 1000 --to 2000
+# See /prisma/seed.ts for more information on arguments
 ```
 
 #### Database management

@@ -8,25 +8,31 @@ import { readAviList, readJsonFile } from "./seed_functions";
 * Run seed function with:
 *   npx prisma db seed
 * Add args after -- and prefix them with --, e.g.:
-*   npx prisma db seed -- --limit 1000
+*   npx prisma db seed -- --from 1000
+* 
+* It is highly recommended that AviList is parsed in full before proceeding to the other files as it serves as the basis of species taxonomy
 * 
 * Accepted args:
-* @argument {number} limit - Cap for number of species parsed
-* @argument {'inat'} startat - Start seeding at specified file; skips prior files
-* @argument {'avilist'|'inat'} endat - End seeding at specified file; skips following files
+* @argument {number} from - Item number from which to start parsing; 0 to n
+* @argument {number} to - Item number at which to stop parsing; 0 to n 
+* @argument {'wikidata'|'inat'} startat - Start seeding at specified file; skips prior files
+* @argument {'avilist'|'wikidata'|'inat'} endat - End seeding at specified file; skips following files
 * 
 * Files are parsed in the following order:
 * 1. AviList ('avilist')
-* 2. INaturalist ('inat')
+* 2. Wikidata ('wikidata')
+* 3. INaturalist ('inat')
 */
 
 const startAtToInt = {
   'avilist': 0,
-  'inat': 1
+  'wikidata': 1,
+  'inat': 2
 };
 
 const options = {
-  limit: { type: "string" },
+  from: { type: "string" },
+  to: { type: "string" },
   startat: { type: "string" },
   endat: { type: "string" }
 } as const;
@@ -35,23 +41,34 @@ const durationStr = (ms: number) => {
   const time = new Date(ms);
 
   return `${time.getMinutes()} min ${time.getSeconds()} s (${time.getMilliseconds()} ms)`;
-}
+};
+
+const argToInt = (arg: string | undefined, type: string) => {
+  if (!arg) return;
+
+  let argInt: number | undefined;
+  try {
+    argInt = Number(arg);
+    return argInt;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  } catch (e) {
+    switch (type) {
+      case ('from'):
+        console.log('No "from" argument received. Starting parsing from the first item in each list');
+    }
+    console.log(`No '${type}' argument parsed.`);
+  }
+};
 
 
 async function main() {
   const startTime = performance.now();
   const {
-    values: { limit, startat, endat },
+    values: { from, to, startat, endat },
   } = parseArgs({ options });
 
-  let useCap = 0;
-  
-  try {
-    if (limit) useCap = parseInt(limit);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  } catch (e) {
-    console.log('No limit argument parsed. Seeding will not be capped.');
-  }
+  const firstItem = argToInt(from, 'from') || 0;
+  const lastItem = argToInt(to, 'to');
 
   let startAtInt = 0;
   let endAtInt = 0;
@@ -65,10 +82,11 @@ async function main() {
   }
 
   const doAvilist = startAtInt === 0;
-  const doInat = startAtInt <= 1 && endAtInt >= 1;
+  const doWikidata = startAtInt <= 1 && endAtInt >= 1;
+  const doInat = startAtInt <= 2 && endAtInt >= 2;
 
-  let aviStart, aviEnd, iNatStart, iNatEnd: number | undefined;
-  aviStart = aviEnd = iNatStart = iNatEnd = 0;
+  let aviStart, aviEnd, wikidataStart, wikidataEnd, iNatStart, iNatEnd: number | undefined;
+  aviStart = aviEnd = wikidataStart = wikidataEnd = iNatStart = iNatEnd = 0;
 
   if (doAvilist) {
     aviStart = performance.now();
@@ -85,19 +103,28 @@ async function main() {
 
     console.log('No startat argument parsed. Running seeding from the beginning.');
     console.log('\n\n===== SEED STEP 1: Read AviList =====\n\n');
-    await readAviList(useCap);
+    await readAviList(firstItem, lastItem);
     aviEnd = performance.now();
   } else {
     console.warn('\n\n===== SKIPPING STEP 1: Read AviList =====\n\n');
   }
 
+  if (doWikidata) {
+    wikidataStart = performance.now();
+    console.log('\n\n===== SEED STEP 2: Read Wikidata data =====\n\n');
+    await readJsonFile('wikidata_data', firstItem, lastItem);
+    wikidataEnd = performance.now();
+  } else {
+    console.warn('\n\n===== SKIPPING STEP 2: Read Wikidata data =====\n\n');
+  }
+
   if (doInat) {
     iNatStart = performance.now();
-    console.log('\n\n===== SEED STEP 2: Read INat data =====\n\n');
-    await readJsonFile('inat_data', useCap);
+    console.log('\n\n===== SEED STEP 3: Read INat data =====\n\n');
+    await readJsonFile('inat_data', firstItem, lastItem);
     iNatEnd = performance.now();
   } else {
-    console.warn('\n\n===== SKIPPING STEP 2: Read INat data =====\n\n');
+    console.warn('\n\n===== SKIPPING STEP 3: Read INat data =====\n\n');
   }
 
   const endTime = performance.now();
@@ -106,6 +133,7 @@ async function main() {
   console.log(`Total time elapsed: ${durationStr(endTime - startTime)}`);
   console.log('\nTime per operation:\n-----------');
   console.log(`AviList:     ${durationStr(aviEnd - aviStart)}`);
+  console.log(`Wikidata:    ${durationStr(wikidataEnd - wikidataStart)}`);
   console.log(`INat:        ${durationStr(iNatEnd - iNatStart)}`);
 
 }
