@@ -8,7 +8,13 @@ Inspired by the marsh sandpiper, the green sandpiper, the wood sandpiper, and th
 
 ## Status
 
-The current version is a base MVP with a basic search and species data views using mock data.
+MVP with the following features:
+- Search species by name
+- Filter species by family and order
+- Display basic species data
+- Data from AviList, iNaturalist and Wikidata is parsed and seeded to Prisma PostgreSQL database
+- API established using Hono and Next.js routing
+- Unit tests for seed functions and API calls
 
 ## Set up
 

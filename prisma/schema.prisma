@@ -54,8 +54,7 @@ model Species { // AviList Taxon_rank="species" OR "subspecies"
   scientificName    String              @unique // AviList: Scientific_name
   protonym          String?             // AviList: Protonym to lower case; used as alternative match
   genus             Genus               @relation(fields: [genusId], references: [id])
-  genusId           Int
-  range             String?             
+  genusId           Int    
   IUCN              IUCNCategory?       // AviList: IUCN_Red_List_Category, Extinct_or_possibly_extinct; init_data: extinct; If none, from parent species
   cornellLabCode    String?             // AviList: Species_code_Cornell_Lab
   avibaseId         String?             // AviList: AvibaseID OR wikidata_data: avibase_id

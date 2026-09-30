@@ -60,7 +60,9 @@ const SpeciesContainer = (props: SpeciesContainerProps) => {
     return speciesState.map((s) => {
       const key = `bird-${s.id}`;
       const nameLatin = s.scientificName;
-      const name = s.names[0]?.name ?? nameLatin;
+      const nameCommon = s.names[0]?.name
+      const name = nameCommon ?? nameLatin;
+      const nameBrackets = nameCommon ? `(${nameLatin})` : '';
       /*const size = s.size as {
         length?: SizeData;
         wingspan?: SizeData;
@@ -78,7 +80,7 @@ const SpeciesContainer = (props: SpeciesContainerProps) => {
             </div>
             <div className="species-name">
               <h1>{name}</h1>
-              <h2><i>({nameLatin})</i></h2>
+              {!!nameCommon && <h2><i>{nameBrackets}</i></h2>}
             </div>
           </div>
           {s.images[0]?.url && (
@@ -91,7 +93,7 @@ const SpeciesContainer = (props: SpeciesContainerProps) => {
               >
                 <Image
                   src={s.images[0].url}
-                  alt={`${name} (${nameLatin})`}
+                  alt={`${name} ${nameBrackets}`}
                   fill
                   style={{ objectFit: "cover", objectPosition: "center" }}
                   sizes="35vw"
