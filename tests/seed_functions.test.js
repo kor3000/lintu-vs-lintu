@@ -22,6 +22,7 @@ afterAll(async () => {
   await deleteIfExists(prisma.genus, { name: genusName2 });
   await deleteIfExists(prisma.family, { name: familyName });
   await deleteIfExists(prisma.order, { name: orderName });
+  await prisma.$disconnect();
 });
 
 test.skip('create language Afaraf (DJ)', async () => {

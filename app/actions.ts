@@ -1,144 +1,67 @@
 "use server";
 
-import { prisma } from "../lib/db";
+import api from "./api/[[...route]]/route";
 
-export const getOrderOptions = async () => {
-  return prisma.order.findMany({
-    select: {
-      id: true,
-      name: true
-    },
-    orderBy: [
-      { name: "asc" }
-    ],
-  });
+type OrderOption = { id: number; name: string };
+type FamilyOption = { id: number; name: string };
+type SearchOption = {
+  id: number;
+  scientificName: string;
+  names: { name: string }[];
+  genus: { name: string; family: { id: number } };
+};
+type SpeciesDetails = {
+  id: number;
+  scientificName: string;
+  size: unknown;
+  images: {
+    url: string;
+    attribution: string;
+    license: { name: string; url: string };
+  }[];
+  genus: {
+    name: string;
+    family: { name: string; order: { name: string } };
+  };
+  names: { name: string }[];
 };
 
-export const getFamilyOptions = async (orderId: number) => {
-  return prisma.family.findMany({
-    where: {
-      orderId
-    },
-    select: {
-      id: true,
-      name: true
-    },
-    orderBy: [
-      { name: "asc" }
-    ],
-  });
+const parseApiResponse = async <T>(response: Response): Promise<T> => {
+  if (!response.ok) {
+    throw new Error(`API request failed with status ${response.status}`);
+  }
+
+  return response.json() as Promise<T>;
 };
 
-const getRelationFilter = (orderId?: number, familyId?: number) => {
-  if (familyId !== undefined) {
-    return { genus: { familyId } };
-  }
-  if (orderId !== undefined) {
-    return { genus: { family: { orderId } } };
-  }
+export const getOrderOptions = async (): Promise<OrderOption[]> => {
+  return parseApiResponse(await api.request("/api/orders"));
+};
 
-  return {};
-}
+export const getFamilyOptions = async (orderId: number): Promise<FamilyOption[]> => {
+  const query = new URLSearchParams({ orderId: String(orderId) });
+  return parseApiResponse(await api.request(`/api/family?${query}`));
+};
 
 export const getSearchOptions = async (
   searchValue: string,
   languageCode: string,
   orderId?: number,
   familyId?: number
-) => {
+): Promise<SearchOption[]> => {
   if (searchValue.trim() === "") return [];
 
-  return prisma.species.findMany({
-    where: {
-      OR: [
-        {
-          scientificName: {
-            contains: searchValue.trim(),
-            mode: "insensitive",
-          }
-        },
-        {
-          names: {
-            some: {
-              language: { code: languageCode },
-              name: {
-                contains: searchValue.trim(),
-                mode: "insensitive",
-              },
-            },
-          },
-        },
-      ],
-      ...(getRelationFilter(orderId, familyId))
-    },
-    select: {
-      id: true,
-      scientificName: true,
-      names: {
-        where: {
-          language: { code: languageCode }
-        },
-        select: {
-          name: true
-        },
-        take: 1
-      },
-      genus: {
-        select: {
-          name: true,
-          family: {
-            select: {
-              id: true,
-            },
-          },
-        },
-      },
-    },
-    orderBy: { scientificName: "asc" },
-  });
+  const query = new URLSearchParams({ searchValue, languageCode });
+  if (orderId !== undefined) query.set("orderId", String(orderId));
+  if (familyId !== undefined) query.set("familyId", String(familyId));
+
+  return parseApiResponse(await api.request(`/api/species/search?${query}`));
 };
 
-export const getSpeciesByIds = async (ids: number[], languageCode: string) => {
-  return prisma.species.findMany({
-    where: { id: { in: ids } },
-    select: {
-      id: true,
-      scientificName: true,
-      size: true,
-      images: {
-        select: {
-          url: true,
-          attribution: true,
-          license: {
-            select: {
-              name: true,
-              url: true,
-            },
-          },
-        },
-      },
-      genus: {
-        select: {
-          name: true,
-          family: {
-            select: {
-              name: true,
-              order: {
-                select: {
-                  name: true,
-                },
-              },
-            },
-          },
-        },
-      },
-      names: {
-        where: {
-          language: { code: languageCode },
-        },
-        select: { name: true },
-        take: 1,
-      },
-    },
-  });
+export const getSpeciesByIds = async (
+  ids: number[],
+  languageCode: string,
+): Promise<SpeciesDetails[]> => {
+  const query = new URLSearchParams({ ids: ids.join(","), languageCode });
+  return parseApiResponse(await api.request(`/api/species?${query}`));
 };
