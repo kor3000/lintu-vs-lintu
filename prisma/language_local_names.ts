@@ -138,7 +138,7 @@ export const localNames = {
   'new': 'नेवाः भाय्',
   'nl': 'Nederlands',
   'nn': 'nynorsk',
-  'no': 'norsk (bokmål)',
+  'no': 'norsk',
   'nov': 'Novial',
   'nrm': 'Normaund',
   'nso': 'Sepedi',
@@ -215,6 +215,7 @@ export const localNames = {
   'zh-hans': '汉语',
   'zh-hant': '漢語',
   'zh-tw': '漢語',
+  'zzzz': 'TEST-LANG'
 };
 
 
