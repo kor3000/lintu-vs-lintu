@@ -1,5 +1,13 @@
 import { expect, test, afterAll } from 'vitest'
-import { getOrCreateLanguage, readFile, parseCSV, handleAviListRow, getOrCreateImageLicense, handleInatItem, handleWikidataItem } from '../prisma/seed_functions'
+import {
+  getOrCreateLanguage,
+  readFile,
+  parseCSV,
+  handleAviListRow,
+  getOrCreateImageLicense,
+  handleInatItem,
+  handleWikidataItem
+} from '../prisma/seed_functions'
 import { deleteIfExists } from "../app/common/utils";
 import prisma from '../client'
 
@@ -10,11 +18,13 @@ const speciesName = 'TEST-Mythicus phoenicus';
 const subspeciesName = 'TEST-Mythicus phoenicus bennu';
 const genusName2 = 'TEST-Fantasticus';
 const speciesName2 = 'TEST-Fantasticus thorondorus';
+const langCode = 'zzzz-xy';
 
 const mockWikidata = `{"${speciesName}":{"ebird_code":"fnx123","gbif_id":"123","ncbi_id":"456","birdlife_id":"789","labels":{"et":"Fööniks","cy":"Ffenics"},"image":{"url":"https://upload.wiki.org/d/phnx.jpg","attribution":"FooBar","license":"CC BY-SA 2.0","license_url":"https://"}}}`;
 const mockInat = `{"${speciesName}":{"inat_id":111,"common_names":{"en":"Common Phoenix","fi":"feeniks"},"image_url":"https://url.com/photos/phnx.jpg","image_attribution":"(c) Kassandra, some rights reserved (CC BY-NC), uploaded by Kassandra","image_license":"cc-by-nc","preferred_common_name":"Common Phoenix","extinct":false},"${subspeciesName}":{"inat_id":112,"common_names":{"en":"Bennu","fi":"Benu-lintu"},"image_url":"https://url.com/photos/bnu.jpg","image_attribution":"(c) Bayek, some rights reserved (CC BY-SA)","image_license":"cc-by-sa","preferred_common_name":"Bennu","extinct":false,"obs_photo":{"url":"https://url.com/photos/bnu-obs.jpg","attribution":"(c) Aya, some rights reserved (CC BY-NC)","license":"cc-by-nc"}},"${speciesName2}":{"inat_id":221,"common_names":{"en":"Great Eagle","fi":"jättiläiskotka"},"image_url":"https://url.com/photos/gree.jpg","image_attribution":"(c) Pippin, all rights reserved","image_license":null,"preferred_common_name":"Thorondor","extinct":true}}`;
 
 afterAll(async () => {
+  await deleteIfExists(prisma.language, { code: langCode });
   await deleteIfExists(prisma.species, { scientificName: subspeciesName });
   await deleteIfExists(prisma.species, { scientificName: speciesName });
   await deleteIfExists(prisma.species, { scientificName: speciesName2 });
@@ -25,10 +35,10 @@ afterAll(async () => {
   await prisma.$disconnect();
 });
 
-test.skip('create language Afaraf (DJ)', async () => {
-  const lang = await getOrCreateLanguage('aa-DJ');
-  expect(lang.code).toBe('aa-DJ');
-  expect(lang.name).toBe('Afaraf (DJ)');
+test('create language', async () => {
+  const lang = await getOrCreateLanguage(langCode);
+  expect(lang.code).toBe(langCode);
+  expect(lang.name).toBe('TEST-LANG (Xy)');
 });
 
 test('extract species data from AviList CSV', async () => {
@@ -80,7 +90,6 @@ test('create image license', async () => {
   const l1 = await getOrCreateImageLicense('cc-by-nc-nd') || {};
   const l2 = await getOrCreateImageLicense('CC BY-SA 4.0') || {};
 
-  console.log('licenses:', l1, l2);
   expect(l1.name).toBe('CC BY-NC-ND');
   expect(l2.url).toBe('https://creativecommons.org/licenses/by-sa/4.0/');
 });

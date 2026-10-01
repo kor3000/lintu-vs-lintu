@@ -103,15 +103,24 @@ export const readAviList = async (from: number = 0, to?: number) => {
   }
 };
 
+let LANGS: string[] | null = null;
+
 /**
  * Reads and imports data from a supported taxonomy JSON file.
  * @param {string} fileName - JSON file name without its extension
+ * @param {string[] | null} langs - List of language codes to which common name parsing is limited
  * @param {number} from - first item to iterate; 0 to n
  * @param {number} to - last item to iterate; 0 to n
  */
-export const readJsonFile = async (fileName: string, from: number = 0, to?: number) => {
+export const readJsonFile = async (
+  fileName: string,
+  langs: string[] | null,
+  from: number = 0,
+  to?: number
+) => {
   Logger.log(`Reading JSON file ${fileName}`);
   const filePath = `${rawDataDir}${fileName}.json`;
+  LANGS = langs;
 
   try {
     const file = await readFile(filePath);
@@ -536,6 +545,7 @@ export const createNames = async (names: { [key: string]: string }, species: Spe
   for (const key in names) {
     let code = key.replace('_', '-').toLowerCase();
     code = transformSet[key as keyof typeof transformSet] || key;
+    if (LANGS && !LANGS.includes(code)) continue;
 
     const lang = await getOrCreateLanguage(code);
     if (!lang) continue;
