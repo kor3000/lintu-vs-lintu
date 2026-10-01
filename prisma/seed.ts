@@ -1,3 +1,4 @@
+import "dotenv/config";
 import prisma from "../client";
 import { parseArgs } from "node:util";
 import { performance } from 'perf_hooks';
