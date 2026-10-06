@@ -5,7 +5,7 @@ import { dirname } from 'path';
 import locale from 'locale-codes';
 import Papa, { ParseResult } from 'papaparse';
 import prisma from "../client";
-import { IUCNCategory, Language, Resource, Species, Genus, ImageLicense, Image } from "../generated/prisma/client"
+import { IUCNCategory, Language, Resource, ResourceUrl, Species, Genus, ImageLicense, Image } from "../generated/prisma/client"
 import { capitalize, firstOrCreate } from "../app/common/utils";
 import Logger from "../app/common/logger";
 import { localNames } from "./language_local_names";
@@ -77,8 +77,9 @@ export const readFile = async (filePath: string): Promise<string | undefined> =>
  * Reads and imports taxonomy rows from the configured AviList CSV file.
  * @param {number} from - first row to iterate; 0 to n
  * @param {number} to - last row to iterate; 0 to n
+ * @returns {Promise<ParseStatistics | undefined>} - number of rows in file if operation succeeds
  */
-export const readAviList = async (from: number = 0, to?: number) => {
+export const readAviList = async (from: number = 0, to?: number): Promise<ParseStatistics | undefined> => {
   const listPath = `${rawDataDir}${process.env.AVILIST_FILE_NAME}.csv`;
 
   try {
@@ -91,19 +92,42 @@ export const readAviList = async (from: number = 0, to?: number) => {
     const results = parseCSV(file) as unknown as ParseResult<ParsedCSVRow>;
     const rows = results?.data || [];
     const rowCount = rows.length;
-    const startAt = (from < rowCount) ? from : rowCount - 1;
-    const endAt = (to && to > 0 && to < rowCount) ? to : rowCount;
+    const { startAt, endAt } = determineStartAndEnd(rowCount, from, to);
+    if (startAt === null) return;
 
     for (let i = startAt; i < endAt; i++) {
       await handleAviListRow(rows[i]);
     }
 
+    return { itemCount: rowCount };
   } catch (e: unknown) {
     Logger.error(`Error reading AviList:\n${e}`);
   }
 };
 
+export interface ParseStatistics {
+  missingSpecies?: string[],
+  itemCount?: number
+}
+
 let LANGS: string[] | null = null;
+let MISSING_SPECIES: string[] = [];
+
+type ParseScope = { startAt: number | null, endAt: number };
+
+/**
+ * Determines which item to start parsing from and which one to end at.
+ * @param {number} itemCount - number of items in total
+ * @param {number} from - first item to iterate; 0 to n
+ * @param {number} to - last item to iterate; 0 to n
+ * @returns {ParseScope}
+ */
+export const determineStartAndEnd = (itemCount: number, from: number = 0, to?: number): ParseScope => {
+  return {
+    startAt: (from < itemCount) ? from : null,
+    endAt: (to && to > 0 && to < itemCount) ? to : itemCount - 1
+  };
+};
 
 /**
  * Reads and imports data from a supported taxonomy JSON file.
@@ -111,16 +135,18 @@ let LANGS: string[] | null = null;
  * @param {string[] | null} langs - List of language codes to which common name parsing is limited
  * @param {number} from - first item to iterate; 0 to n
  * @param {number} to - last item to iterate; 0 to n
+ * @returns {Promise<ParseStatistics | undefined>} - number of items in file and array of missing species names if operation succeeds
  */
 export const readJsonFile = async (
   fileName: string,
   langs: string[] | null,
   from: number = 0,
   to?: number
-) => {
-  Logger.log(`Reading JSON file ${fileName}`);
+): Promise<ParseStatistics | undefined> => {
+  Logger.info(`Reading JSON file ${fileName}`);
   const filePath = `${rawDataDir}${fileName}.json`;
   LANGS = langs;
+  MISSING_SPECIES = [];
 
   try {
     const file = await readFile(filePath);
@@ -131,19 +157,31 @@ export const readJsonFile = async (
 
     const json = await JSON.parse(file);
     const itemCount = Object.keys(json).length;
-    const startAt = (from < itemCount) ? from : itemCount - 1;
-    const endAt = (to && to > 0 && to < itemCount) ? to : itemCount - 1;
+    const { startAt, endAt } = determineStartAndEnd(itemCount, from, to);
+    if (startAt === null) return;
+
+    Logger.info(`Parsing items ${startAt}–${endAt} in file ${fileName}`);
 
     switch (fileName) {
       case 'wikidata_data':
-        Logger.log('Parsing Wikidata data');
         await handleWikidataData(json, startAt, endAt);
         break;
       case 'inat_data':
-        Logger.log('Parsing INat data');
         await handleInatData(json, startAt, endAt);
         break;
+      case 'wikipedia_data':
+        await handleWikipediaData(json, startAt, endAt);
+        break;
+      case 'macaulay_data':
+        await handleMacaulayData(json, startAt, endAt);
+        break;
     }
+
+    if (MISSING_SPECIES.length > 0) {
+      Logger.warn(`Data not persisted for species missing from database:\n${MISSING_SPECIES.join(', ')}`);
+    }
+
+    return { missingSpecies: MISSING_SPECIES, itemCount };
   } catch (e: unknown) {
     if (e instanceof SyntaxError) {
       Logger.error(`Invalid JSON in file "${fileName}":\n${e}`);
@@ -249,7 +287,7 @@ const createSpecies = async (row: ParsedCSVRow): Promise<Species> => {
     genus: { connect: { id: g.id }},
     protonym: row.Protonym,
     cornellLabCode: row.Species_code_Cornell_Lab,
-    avibaseId: row.AvibaseID,
+    avibaseId: row.AvibaseID.replace('avibase-', ''),
     IUCN: verifyIUCNCategory(row.IUCN_Red_List_Category, row.Extinct_or_possibly_extinct)
   };
 
@@ -270,7 +308,8 @@ const createSpecies = async (row: ParsedCSVRow): Promise<Species> => {
 
   // Create resources
   for (const k of Object.keys(aviListResourceNameMap)) {
-    await createResourceUrl(row, species, k as keyof typeof resourceNameMap);
+    const url = row[k];
+    await createResourceUrl(url, species, k as keyof typeof resourceNameMap);
   }
 
   return species
@@ -326,6 +365,104 @@ export const handleAviListRow = async (row: ParsedCSVRow): Promise<unknown | voi
   Logger.warn(`No action taken for AviList row ${sciName}`);
 };
 
+type MacaulayItem = {
+  ml_taxon_code: string;
+};
+
+type MacaulayData = {
+  [key: string]: MacaulayItem;
+}
+
+// Macaulay -->
+
+const handleMacaulayData = async (macdata: MacaulayData, from: number, to: number) => {
+  const keyList = Object.keys(macdata);
+
+  for (let i = from; i <= to; i++) {
+    const key = keyList[i];
+    Logger.log(`[Macaulay/${i}] Updating species ${key}`);
+    await handleMacauleyItem(key, macdata[key]);
+  }
+};
+
+export const handleMacauleyItem = async (speciesName: string, item: MacaulayItem) => {
+  const species = await findSpecies(speciesName);
+
+  if (!species) return;
+
+  await prisma.species.update({
+    where: { id: species.id },
+    data: { macaulayCode: item.ml_taxon_code }
+  });
+};
+
+// END Macaulay
+
+// Wikipedia -->
+
+type WikipediaItem = {
+  title: string;
+  extract: string;
+  description: string;
+  wikipedia_urls: { [key: string]: string }
+  extracts: { [key: string]: string }
+  image_url?: string;
+};
+
+type WikipediaData = {
+  [key: string]: WikipediaItem
+}
+
+/**
+ * Processes Wikipedia records.
+ * @param {WikipediaData} wikidata - Wikipedia records keyed by species name
+ * @param {number} from - first item to iterate; 0 to n
+ * @param {number} to - last item to iterate; 0 to n
+ */
+const handleWikipediaData = async (wikidata: WikipediaData, from: number, to: number) => {
+  const keyList = Object.keys(wikidata);
+
+  for (let i = from; i <= to; i++) {
+    const key = keyList[i];
+    Logger.log(`[Wikipedia/${i}] Updating species ${key}`);
+    await handleWikipediaItem(key, wikidata[key]);
+  }
+};
+
+/**
+ * Updates a species with Wikipedia identifiers, an image, and localized names.
+ * @param {string} speciesName - scientific name used to find the species
+ * @param {WikipediaItem} item - Wikipedia record for the species
+ */
+export const handleWikipediaItem = async (speciesName: string, item: WikipediaItem) => {
+  const species = await findSpecies(speciesName);
+
+  if (!species) return;
+
+  if (item.image_url) {
+    await createImage(
+      {
+        url: item.image_url.split('?')[0],
+        license: 'CC_WIKIMEDIA',
+        attribution: 'CC upload to Wikimedia.'
+      },
+      species
+    );
+  }
+
+  const urls = item.wikipedia_urls;
+  for (const key in urls) {
+    if (LANGS && !LANGS.includes(key)) continue;
+
+    const lang = await getOrCreateLanguage(key);
+    if (!lang) continue;
+
+    await createResourceUrl(urls[key], species, 'wikipedia', lang);
+  }
+};
+
+// END Wikipedia
+
 // Wikidata -->
 
 type WikidataItem = {
@@ -346,7 +483,8 @@ type WikidataUpdateData = {
   ebirdCode: string;
   ncbiId: number;
   birdlifeId: number;
-  gbifId: number
+  gbifId: number;
+  avibaseId: string;
 };
 
 /**
@@ -360,6 +498,7 @@ const handleWikidataData = async (wikidata: Wikidata, from: number, to: number) 
 
   for (let i = from; i <= to; i++) {
     const key = keyList[i];
+    Logger.log(`[Wikidata/${i}] Updating species ${key}`);
     await handleWikidataItem(key, wikidata[key]);
   }
 };
@@ -370,7 +509,6 @@ const handleWikidataData = async (wikidata: Wikidata, from: number, to: number) 
  * @param {WikidataItem} item - Wikidata record for the species
  */
 export const handleWikidataItem = async (speciesName: string, item: WikidataItem) => {
-  Logger.log(`Updating species ${speciesName} / Wikidata`);
   const species = await findSpecies(speciesName);
 
   if (!species) return;
@@ -380,7 +518,8 @@ export const handleWikidataItem = async (speciesName: string, item: WikidataItem
     ebirdCode: item.ebird_code,
     ncbiId: Number(item.ncbi_id),
     birdlifeId: Number(item.birdlife_id),
-    gbifId: Number(item.gbif_id)
+    gbifId: Number(item.gbif_id),
+    avibaseId: item.avibase_id
   };
 
   await prisma.species.update({ where: { id: species.id }, data: updateData });
@@ -449,6 +588,7 @@ const handleInatData = async (inatData: InatData, from: number, to: number) => {
 
   for (let i = from; i <= to; i++) {
     const key = keyList[i];
+    Logger.log(`[INat/${i}] Updating species ${key}`);
     await handleInatItem(key, inatData[key]);
   }
 };
@@ -459,7 +599,6 @@ const handleInatData = async (inatData: InatData, from: number, to: number) => {
  * @param {InatItem} item - parsed INat data
  */
 export const handleInatItem = async (speciesName: string, item: InatItem) => {
-  Logger.log(`Updating species ${speciesName} / INat`);
   const species = await findSpecies(speciesName);
 
   if (!species) return;
@@ -486,12 +625,19 @@ export const handleInatItem = async (speciesName: string, item: InatItem) => {
     images.push(item.obs_photo);
   }
 
-  for (const img of images) {
-    await createImage(img, species);
+  const createImages = async () => {
+    for (const img of images) {
+      await createImage(img, species);
+    }
   }
 
   // Create names
-  await createNames(item.common_names, species, 'inat');
+  // await createNames(item.common_names, species, 'inat');
+
+  return Promise.allSettled([
+    createImages(),
+    createNames(item.common_names, species, 'inat')
+  ]);
 };
 
 // END INat
@@ -512,6 +658,7 @@ const findSpecies = async (speciesName: string): Promise<Species | null> => {
   });
 
   if (!species) {
+    MISSING_SPECIES.push(speciesName);
     Logger.warn(`No species with the name ${speciesName} found. Skipping.`);
     return null;
   }
@@ -541,27 +688,33 @@ const transformLang = {
  */
 export const createNames = async (names: { [key: string]: string }, species: Species, source: string) => {
   const transformSet = transformLang[source as keyof typeof transformLang] || {};
+  const funcs = [];
 
   for (const key in names) {
     let code = key.replace('_', '-').toLowerCase();
     code = transformSet[key as keyof typeof transformSet] || key;
     if (LANGS && !LANGS.includes(code)) continue;
 
-    const lang = await getOrCreateLanguage(code);
-    if (!lang) continue;
-
-    const whereProps = {
-      speciesId: species.id,
-      languageId: lang.id
-    };
-
-    await firstOrCreate(
-      prisma.speciesName,
-      whereProps,
-      { name: names[key] }
-    );
+    funcs.push(createName(code, names[key], species));
   }
+  return Promise.allSettled(funcs);
 };
+
+const createName = async (code: string, name: string, species: Species) => {
+  const lang = await getOrCreateLanguage(code);
+  if (!lang) return;
+
+  const whereProps = {
+    speciesId: species.id,
+    languageId: lang.id
+  };
+
+  await firstOrCreate(
+    prisma.speciesName,
+    whereProps,
+    { name }
+  );
+}
 
 /**
  * Creates a new Image instance
@@ -620,7 +773,7 @@ const determineLicenseName = (baseName: string): string | null => {
 
 /**
  * Creates a new ImageLicense instance or returns an existing one
- * @param {string} baseName - license identifier from INat or Wikidata
+ * @param {string} baseName - license identifier from INat, Wikidata, or Wikipedia
  * @returns {Promise<ImageLicense | null>}
  */
 export const getOrCreateImageLicense = async (baseName: string): Promise<ImageLicense | null> => {
@@ -635,6 +788,7 @@ export const getOrCreateImageLicense = async (baseName: string): Promise<ImageLi
   if (license) return license;
 
   const nameSplit = name.split(' ');
+  const splitLength = nameSplit.length;
 
   let url: string | null = null;
   
@@ -646,14 +800,22 @@ export const getOrCreateImageLicense = async (baseName: string): Promise<ImageLi
       url = 'https://creativecommons.org/publicdomain/mark/1.0/';
       break;
     case 'GFDL': {
-      if (nameSplit.length > 1) {
+      if (splitLength > 1) {
         url = `https://www.gnu.org/licenses/fdl-${nameSplit[1]}.html`;
       }
       break;
     }
+    case 'CC_WIKIMEDIA':
+      url = 'https://commons.wikimedia.org/wiki/File:%FILENAME%';
+      break;
     default: {
-      if (nameSplit.length > 1) {
-        url = `https://creativecommons.org/licenses/${nameSplit[1].toLowerCase()}/`;
+      if (splitLength < 2) break;
+
+      url = 'https://creativecommons.org/licenses/';
+
+      // E.g., 'CC BY-NC', 'CC BY-SA 4.0', 'CC BY-SA 2.5 AR'
+      for (let i = 1; i < splitLength; i ++) {
+        url = `${url}${nameSplit[i].toLowerCase()}/`;
       }
     }
   }
@@ -663,9 +825,7 @@ export const getOrCreateImageLicense = async (baseName: string): Promise<ImageLi
     return null;
   }
 
-  if (nameSplit.length === 3) url = `${url}${nameSplit[2]}/`;
-
-  Logger.log(`Creating image license "${name}" with url: ${url}`);
+  Logger.debug(`Fetching or creating image license "${name}" with url: ${url}`);
   const newLicense = await firstOrCreate(
     prisma.imageLicense,
     { name },
@@ -701,18 +861,18 @@ const resources: ResourceMap = {};
  * @param {keyof typeof resourceNameMap} key - resource identifier
  * @returns {Promise<Resource>} created or existing resource
  */
-export const getOrCreateResource = async (key: keyof typeof resourceNameMap) => {
+export const getOrCreateResource = async (key: keyof typeof resourceNameMap): Promise<Resource> => {
   if (resources[key]) return resources[key];
 
   const name = resourceNameMap[key];
 
-  Logger.log(`Creating resource: ${name}`);
+  Logger.debug(`Fetching or creating resource: ${name}`);
   const resource = await firstOrCreate(
     prisma.resource,
     { name }
-  );
+  ) as Resource;
 
-  if (resource) resources[key] = resource as Resource;
+  if (resource) resources[key] = resource;
   else Logger.warn(`Failed to create resource ${name}`);
   
   return resource;
@@ -720,17 +880,18 @@ export const getOrCreateResource = async (key: keyof typeof resourceNameMap) => 
 
 /**
  * Creates a URL resource association for a species when the source row contains a URL.
- * @param {ParsedCSVRow} row - parsed AviList row
+ * @param {string | null | undefined} url - resource URL
  * @param {Species} species - species associated with the URL
  * @param {keyof typeof resourceNameMap} key - resource identifier and row field
+ * @param {Language} language? - language of resource
  * @returns {Promise<ResourceUrl | undefined>} created association, or undefined without a URL
  */
 const createResourceUrl = async (
-  row: ParsedCSVRow,
+  url: string | null | undefined,
   species: Species,
-  key: keyof typeof resourceNameMap
-) => {
-  const url = row[key];
+  key: keyof typeof resourceNameMap,
+  language?: Language
+): Promise<ResourceUrl | undefined> => {
   if (!url || url.length === 0) return;
 
   const resource = await getOrCreateResource(key);
@@ -739,7 +900,8 @@ const createResourceUrl = async (
     data: {
       url,
       speciesId: species.id,
-      resourceId: resource.id
+      resourceId: resource.id,
+      languageId: language ? language.id : null
     }
   });
  
@@ -778,7 +940,7 @@ export const getOrCreateLanguage = async (code: string): Promise<Language | null
     name = `${name} (${capitalize(split[1])})`;
   }
 
-  Logger.log(`Creating language ${code}: ${name}`);
+  Logger.debug(`Fetching or creating language ${code}: ${name}`);
   const newLang = await firstOrCreate(
     prisma.language,
     { code },

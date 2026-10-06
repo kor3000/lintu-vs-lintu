@@ -3,7 +3,7 @@ import prisma from "../client";
 import { parseArgs } from "node:util";
 import { performance } from 'perf_hooks';
 
-import { readAviList, readJsonFile } from "./seed_functions";
+import { readAviList, readJsonFile, determineStartAndEnd, type ParseStatistics } from "./seed_functions";
 
 /**
 * Run seed function with:
@@ -17,21 +17,25 @@ import { readAviList, readJsonFile } from "./seed_functions";
 * Accepted args:
 * @argument {number} from - Item number from which to start parsing; 0 to n
 * @argument {number} to - Item number at which to stop parsing; 0 to n 
-* @argument {'wikidata'|'inat'} startAt - Start seeding at specified file; skips prior files
-* @argument {'avilist'|'wikidata'|'inat'} endAt - End seeding at specified file; skips following files
+* @argument {keyof typeof fileCue} startAt - Start seeding at specified file; skips prior files
+* @argument {keyof typeof fileCue} endAt - End seeding at specified file; skips following files
 * @argument {string} limitLangs - Comma-separated list of language codes for which you want bird species common name. E.g., 'en,fi'.
-*     Limiting languages speeds up seeding considerably. By default all available common name translations are parsed.
+*                                 Limiting languages speeds up seeding. By default all available common name translations are parsed.
 * 
 * Files are parsed in the following order:
 * 1. AviList ('avilist')
 * 2. Wikidata ('wikidata')
 * 3. INaturalist ('inat')
+* 4. Wikipedia ('wikipedia')
+* 5. Macaulay ('macaulay')
 */
 
 const fileCue = {
   'avilist': 0,
   'wikidata': 1,
-  'inat': 2
+  'inat': 2,
+  'wikipedia': 3,
+  'macaulay': 4
 };
 
 const options = {
@@ -48,12 +52,20 @@ const durationStr = (ms: number) => {
   return `${time.getMinutes()} min ${time.getSeconds()} s (${time.getMilliseconds()} ms)`;
 };
 
+const coverageStr = (count: number | undefined, firstItem: number, lastItem?: number) => {
+  if (!count || firstItem > count - 1) return 'N/A';
+
+  const { startAt, endAt } = determineStartAndEnd(count, firstItem, lastItem);
+  const covered = (startAt === null) ? 0 : endAt - startAt + 1;
+  const percent = Math.round(covered / count * 10000) / 100;
+  return `${percent} % (${covered}/${count} items)`;
+};
+
 const argToInt = (arg: string | undefined, type: string) => {
   if (!arg) return;
 
-  let argInt: number | undefined;
   try {
-    argInt = Number(arg);
+    const argInt = Number(arg);
     return argInt;
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (e) {
@@ -62,110 +74,122 @@ const argToInt = (arg: string | undefined, type: string) => {
         console.log('No "from" argument received. Starting parsing from the first item in each list');
         break;
       case 'to':
-        console.log('No "to" argument received. End parsing from the last item in each list');
+        console.log('No "to" argument received. End parsing at the last item in each list');
         break;
     }
   }
 };
 
+const clearDatabase = async () => {
+  console.log('No startAt argument parsed. Running seeding from the beginning.');
+  console.log('\n\n===== CLEAR DATABASE =====\n\n');
+  await prisma.$transaction([
+    prisma.species.deleteMany(),
+    prisma.genus.deleteMany(),
+    prisma.family.deleteMany(),
+    prisma.order.deleteMany(),
+    prisma.language.deleteMany(),
+    prisma.resource.deleteMany(),
+  ]);
+};
+
+interface SeedStatistics extends ParseStatistics {
+ startTime: number;
+ endTime: number;
+};
+
+type SeedData = { [key: string]: SeedStatistics | undefined };
 
 async function main() {
   const startTime = performance.now();
+
+  // Handle args
   const {
     values: { from, to, startAt, endAt, limitLangs },
   } = parseArgs({ options });
 
   const firstItem = argToInt(from, 'from') || 0;
   const lastItem = argToInt(to, 'to');
+  const startAtInt = (startAt && startAt in fileCue) ? fileCue[startAt as keyof typeof fileCue] : 0;
+  const endAtInt = (endAt && endAt in fileCue) ? fileCue[endAt as keyof typeof fileCue] : 999;
+  const langs = limitLangs ? limitLangs.toLowerCase().split(',') : null;
 
-  let startAtInt = 0;
-  let endAtInt = 999;
-
-  if (startAt && startAt in fileCue) {
-    startAtInt = fileCue[startAt as keyof typeof fileCue];
-  }
-
-  if (endAt && endAt in fileCue) {
-    endAtInt = fileCue[endAt as keyof typeof fileCue];
-  }
-
-  let langs: string[] | null = null;
-
-  console.log('\n\n===== BEGIN SEEDING =====\n\n');
-
-  if (limitLangs) {
-    langs = limitLangs.toLowerCase().split(',');
+  if (langs) {
     console.log('Limiting bird species common name parsing to the following languages:', langs.join(', '));
   } else {
-    console.log('No "limit" argument received. Parsing bird common names in all available languages.');
+    console.log('No "limitLangs" argument received. Parsing bird common names in all available languages.');
   }
 
-  const doAvilist = startAtInt === 0;
-  const doWikidata = startAtInt <= 1 && endAtInt >= 1;
-  const doInat = startAtInt <= 2 && endAtInt >= 2;
+  console.log('\n\n===== BEGIN SEEDING =====\n\n');
+  const stats: SeedData = {};
 
-  let aviStart, aviEnd, wikidataStart, wikidataEnd, iNatStart, iNatEnd: number | undefined;
-  aviStart = aviEnd = wikidataStart = wikidataEnd = iNatStart = iNatEnd = 0;
-
-  if (doAvilist) {
-    aviStart = performance.now();
-    // Only clear database if starting from the beginning
-    console.log('\n\n===== CLEAR DATABASE =====\n\n');
-    await prisma.$transaction([
-      prisma.species.deleteMany(),
-      prisma.genus.deleteMany(),
-      prisma.family.deleteMany(),
-      prisma.order.deleteMany(),
-      prisma.language.deleteMany(),
-      prisma.resource.deleteMany(),
-    ]);
-
-    console.log('No startAt argument parsed. Running seeding from the beginning.');
-    console.log('\n\n===== SEED STEP 1: Read AviList =====\n\n');
-    await readAviList(firstItem, lastItem);
-    aviEnd = performance.now();
-  } else {
-    console.warn('\n\n===== SKIPPING STEP 1: Read AviList =====\n');
+  // Parse files
+  const handleFile =  async (
+    key: keyof typeof fileCue,
+  ) => {
+    const cue = fileCue[key]
+    if (startAtInt > cue || endAtInt < cue) {
+      console.warn(`\n\n===== SKIPPING STEP ${cue + 1}: Read ${key} data =====\n`);
+      return;
+    }
+    
+    const startTime = performance.now();
+    const isAvilist = key === 'avilist';
+    if (isAvilist) await clearDatabase();
+    console.log(`\n\n===== SEED STEP ${cue + 1}: Read ${key} data =====\n\n`);
+    const fileStats = isAvilist
+      ? await readAviList(firstItem, lastItem) || {}
+      : await readJsonFile(`${key}_data`, langs, firstItem, lastItem) || {};
+    const endTime = performance.now();
+    stats[key] = { ...fileStats, startTime, endTime }
   }
 
-  if (doWikidata) {
-    wikidataStart = performance.now();
-    console.log('\n\n===== SEED STEP 2: Read Wikidata data =====\n\n');
-    await readJsonFile('wikidata_data', langs, firstItem, lastItem);
-    wikidataEnd = performance.now();
-  } else {
-    console.warn('\n\n===== SKIPPING STEP 2: Read Wikidata data =====\n');
-  }
-
-  if (doInat) {
-    iNatStart = performance.now();
-    console.log('\n\n===== SEED STEP 3: Read INat data =====\n\n');
-    await readJsonFile('inat_data', langs, firstItem, lastItem);
-    iNatEnd = performance.now();
-  } else {
-    console.warn('\n\n===== SKIPPING STEP 3: Read INat data =====\n');
-  }
+  await handleFile('avilist');
+  await handleFile('wikidata');
+  await handleFile('inat');
+  await handleFile('wikipedia');
+  await handleFile('macaulay');
 
   const endTime = performance.now();
 
-  console.log('\n\nAll seed operations run');
+  // Log command & args
+  if (startAt || endAt || from || to || limitLangs) {
+    const startAtStr = startAt ? ` --startAt ${startAt}` : '';
+    const endAtStr = endAt ? ` --endAt ${endAt}` : '';
+    const fromStr  = from ? ` --from ${from}` : '';
+    const toStr = to ? ` --to ${to}` : '';
+    const langStr = limitLangs ? ` --limitLangs ${limitLangs}` : '';
+    console.log(`\n\nFinished running command:\n    npx prisma db seed --${startAtStr}${endAtStr}${fromStr}${toStr}${langStr}\n`);
+  } else {
+    console.log('\n\nFinished running command:\n    npx prisma db seed\n');
+  }
 
-  if (from || to) {
-    const toString = to
-      ? `to ${lastItem}`
-      : 'through to the last items in the files';
-    console.log(`Parsed items from ${firstItem} ${toString}`);
+  let reportMissing = '';
+  const tableStr: string[] = [];
+
+  // Prepare report strings for logging
+  for (const key of Object.keys(stats)) {
+    const data = stats[key];
+    if (!data) continue;
+
+    const label = `${key}${' '.repeat(13 - key.length)}`;
+    const dur = durationStr(data.endTime - data.startTime); 
+    const coverage = coverageStr(data.itemCount, firstItem, lastItem);
+    tableStr.push(`${label}${dur}${' '.repeat(24 - dur.length)}${coverage}`);
+    
+    if (data.missingSpecies && data.missingSpecies.length > 0) {
+      reportMissing = `${reportMissing}\n  ${key}: ${data.missingSpecies.join(', ')}`;
+    }
+  }
+
+  // Log report
+  if (reportMissing !== '') {
+    console.warn(`Data not persisted for the following species missing from database:\n${reportMissing}\n`);
   }
 
   console.log(`Total time elapsed: ${durationStr(endTime - startTime)}`);
-  console.log('\nTime per operation:\n-----------');
-  if (doAvilist)
-    console.log(`AviList:     ${durationStr(aviEnd - aviStart)}`);
-  if (doWikidata)
-    console.log(`Wikidata:    ${durationStr(wikidataEnd - wikidataStart)}`);
-  if (doInat)
-    console.log(`INat:        ${durationStr(iNatEnd - iNatStart)}`);
-
+  console.log(`\nFile         Time                    Coverage\n${'-'.repeat(62)}`);
+  console.log(tableStr.join('\n'));
 }
 
 main()

@@ -4,7 +4,7 @@ const COLORS = {
   blue: '\x1b[34m',
   magenta: '\x1b[35m',
   reset: '\x1b[0m'
-}
+};
 
 const printDate = () => {
   return `[${(new Date).toLocaleString()}]`;
