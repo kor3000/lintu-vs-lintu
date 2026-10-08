@@ -439,15 +439,16 @@ export const handleWikipediaItem = async (speciesName: string, item: WikipediaIt
 
   if (!species) return;
 
+  const funcs = [];
   if (item.image_url) {
-    await createImage(
+    funcs.push(createImage(
       {
         url: item.image_url.split('?')[0],
         license: 'CC_WIKIMEDIA',
         attribution: 'CC upload to Wikimedia.'
       },
       species
-    );
+    ));
   }
 
   const urls = item.wikipedia_urls;
@@ -457,8 +458,9 @@ export const handleWikipediaItem = async (speciesName: string, item: WikipediaIt
     const lang = await getOrCreateLanguage(key);
     if (!lang) continue;
 
-    await createResourceUrl(urls[key], species, 'wikipedia', lang);
+    funcs.push(createResourceUrl(urls[key], species, 'wikipedia', lang));
   }
+  return Promise.allSettled(funcs);
 };
 
 // END Wikipedia
@@ -524,17 +526,20 @@ export const handleWikidataItem = async (speciesName: string, item: WikidataItem
 
   await prisma.species.update({ where: { id: species.id }, data: updateData });
 
+  const funcs = [];
   if (item.image) {
     const img: ImageData = {
       ...item.image,
       attribution: `(c) ${item.image.attribution} (${item.image.license})`
     };
-    await createImage(img, species);
+    funcs.push(createImage(img, species));
   }  
 
   // Create names
   if (item.labels)
-    await createNames(item.labels, species, 'wikidata');
+    funcs.push(createNames(item.labels, species, 'wikidata'));
+
+  return Promise.allSettled(funcs);
 };
 
 // END Wikidata
