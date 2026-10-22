@@ -1,16 +1,14 @@
 import React, { useEffect, useRef, useState } from "react";
 import { getOrderOptions, getFamilyOptions, getSearchOptions } from "./actions";
+import languageStore from "./stores/language-store";
+import speciesStore from "./stores/species-store";
 
 type DatabaseOrders = Awaited<ReturnType<typeof getOrderOptions>>;
 type DatabaseFamilies = Awaited<ReturnType<typeof getFamilyOptions>>;
 type DatabaseSearchOptions = Awaited<ReturnType<typeof getSearchOptions>>;
 
-type SearchBarProps = {
-  changeSpecies: (id: number) => void;
-  nameLang: string;
-};
-
-const SearchBar = (props: SearchBarProps) => {
+const SearchBar = () => {
+  const [nameLang, setNameLang] = useState<string>(languageStore.nameLang);
   const [searchInput, setSearchInput] = useState<string>('');
   const [filterOptions, setFilterOptions] = useState<DatabaseSearchOptions>([]);
   const [orderOptionsLoaded, setOrderOptionsLoaded] = useState<boolean>(false);
@@ -21,6 +19,17 @@ const SearchBar = (props: SearchBarProps) => {
   const [showFilterOptions, setShowFilterOptions] = useState<boolean>(true);
   const [selectedFamily, setSelectedFamily] = useState<number>(-1);
   const searchInputRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const update = (lang: string) => {
+      setNameLang(lang);
+    };
+
+    languageStore.addObserver({ update });
+
+    return () => languageStore.removeObserver({ update });
+  }, []);
+
 
   useEffect(() => {
     getOrderOptions().then((orders) => {
@@ -63,7 +72,7 @@ const SearchBar = (props: SearchBarProps) => {
     const timeoutId = setTimeout(() => {
       getSearchOptions(
         searchValue,
-        props.nameLang,
+        nameLang,
         selectedOrder === -1 ? undefined : selectedOrder,
         selectedFamily === -1 ? undefined : selectedFamily
       ).then((species) => {
@@ -72,7 +81,7 @@ const SearchBar = (props: SearchBarProps) => {
     }, 300);
 
     return () => clearTimeout(timeoutId);
-  }, [searchInput, selectedOrder, selectedFamily, props.nameLang]);
+  }, [searchInput, selectedOrder, selectedFamily, nameLang]);
 
   const listFilterOptions = () => {
     if (!showFilterOptions || searchInput === '' || filterOptions.length === 0)
@@ -86,7 +95,7 @@ const SearchBar = (props: SearchBarProps) => {
               <div
                 className="search-filter-item"
                 title="Add to comparison"
-                onMouseUp={() => props.changeSpecies(opt.id)}
+                onMouseUp={() => speciesStore.changeSelectedSpecies(opt.id)}
               >
                 {opt.names[0]
                   ? `${opt.names[0].name} (${opt.scientificName})`

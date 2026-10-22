@@ -1,14 +1,9 @@
 import Image from "next/image";
-import React, { useEffect } from "react";
+import React, { useEffect, useState, useReducer } from "react";
 import { getSpeciesByIds } from "./actions";
 import { /*SizeData,*/ SpeciesActionKind, SpeciesAction } from "./common/types";
-
-type SpeciesContainerProps = {
-  // selectedSpecies: number[]
-  speciesAction: SpeciesAction | null;
-  changeSpecies: (id: number) => void;
-  nameLang: string;
-}
+import languageStore from "./stores/language-store";
+import speciesStore from "./stores/species-store";
 
 type DatabaseSpecies = Awaited<ReturnType<typeof getSpeciesByIds>>[number];
 type SpeciesStateAction =
@@ -28,24 +23,41 @@ const speciesReducer = (
     : [...state, action.species];
 };
 
-const SpeciesContainer = (props: SpeciesContainerProps) => {
-  const [speciesState, dispatch] = React.useReducer(speciesReducer, []);
-
-  const nameLang = props.nameLang;
+const SpeciesContainer = () => {
+  const [speciesState, dispatch] = useReducer(speciesReducer, []);
+  const [nameLang, setNameLang] = useState<string>(languageStore.nameLang);
+  const [lastAction, setLastAction] = useState<SpeciesAction | null>(speciesStore.lastAction);
 
   useEffect(() => {
-    if (!props.speciesAction) return;
+    const nameLangObserver = {
+      update: (lang: string) => { setNameLang(lang); }
+    }
+    const lastActionObserver = {
+      update: (action: SpeciesAction)  => { setLastAction(action); }
+    }
 
-    if (props.speciesAction.type === SpeciesActionKind.REMOVE) {
-      dispatch({ type: "remove", id: props.speciesAction.id });
+    languageStore.addObserver(nameLangObserver);
+    speciesStore.addObserver(lastActionObserver);
+
+    return () => {
+      languageStore.removeObserver(nameLangObserver);
+      speciesStore.removeObserver(lastActionObserver);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!lastAction) return;
+
+    if (lastAction.type === SpeciesActionKind.REMOVE) {
+      dispatch({ type: "remove", id: lastAction.id });
       return;
     }
 
-    getSpeciesByIds([props.speciesAction.id], nameLang).then((species) => {
+    getSpeciesByIds([lastAction.id], nameLang).then((species) => {
       if (species.length === 0) return;
       dispatch({ type: "add", species: species[0] });
     });
-  }, [props.speciesAction, nameLang]);
+  }, [lastAction, nameLang]);
 
   /*const renderSizeData = (type: string, size: SizeData | undefined) => {
     const label = <b>{type}:</b>;
@@ -74,7 +86,7 @@ const SpeciesContainer = (props: SpeciesContainerProps) => {
             <div
               className="close-button"
               title="Remove from comparison"
-              onMouseUp={() => props.changeSpecies(s.id)}
+              onMouseUp={() => speciesStore.changeSelectedSpecies(s.id)}
             >
               <p>✕</p>
             </div>
