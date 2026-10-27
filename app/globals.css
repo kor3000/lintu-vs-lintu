@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "bootstrap/dist/css/bootstrap.min.css";
 
 :root {
   --background: #00420C;
@@ -13,11 +14,16 @@
   --brown-med: #AA6E37;
   --brown-light: #D39A65;
   --brown-pastel: #FDCFA5;
-  --blue-dark: #012F35;
+  /*--blue-dark: #012F35;
   --blue-dim: #0E474F;
   --blue-med: #236068;
-  --blue-light: #3F7981;
-  --blue-pastel: #66949B;
+  --blue-light: #3F7981; 
+  --blue-pastel: #66949B;*/
+  --blue-dark: #01535F;
+  --blue-dim: #026A79;
+  --blue-med: #026A79;
+  --blue-light: #2793A2;
+  --blue-pastel: #48A8B5;
   --red-dark: #560600;
   --red-dim: #811D15;
   --red-med: #AA3F37;

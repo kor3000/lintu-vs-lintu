@@ -2,6 +2,7 @@ import Image from "next/image";
 import React, { useEffect, useState, useReducer } from "react";
 import { getSpeciesByIds } from "./actions";
 import { /*SizeData,*/ SpeciesActionKind, SpeciesAction } from "./common/types";
+import { MaterialSymbolsClose } from "./common/icons"
 import languageStore from "./stores/language-store";
 import speciesStore from "./stores/species-store";
 
@@ -88,7 +89,7 @@ const SpeciesContainer = () => {
               title="Remove from comparison"
               onMouseUp={() => speciesStore.changeSelectedSpecies(s.id)}
             >
-              <p>✕</p>
+              <MaterialSymbolsClose />
             </div>
             <div className="species-name">
               <h1>{name}</h1>
