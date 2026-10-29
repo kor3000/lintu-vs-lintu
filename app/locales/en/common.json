@@ -1,0 +1,23 @@
+{
+  "scientific_class": "Scientific classification",
+  "order": "Order",
+  "family": "Family",
+  "genus": "Genus",
+  "all_orders": "All orders",
+  "all_families": "All families",
+  "search_species": "Search for a species...",
+  "info": "Information",
+  "settings": "Settings",
+  "close": "Close",
+  "save_changes": "Save changes",
+  "info_modal": {
+    "lintu_link_title": "LINTU vs LINTU Github page",
+    "birdnet_link_title": "BirdNET+ Taxonomy Github page",
+    "p1": "<anchor>LINTU vs LINTU</anchor> is a bird species comparison tool.",
+    "p2": "Data for the project is gathered using the <anchor>BirdNET+ Taxonomy pipeline</anchor>."
+  },
+  "settings_modal": {
+    "select_ui_lang": "Select interface language",
+    "select_species_lang": "Select species common name language"
+  }
+}

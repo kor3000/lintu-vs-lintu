@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { useT } from 'next-i18next/client';
 import { getOrderOptions, getFamilyOptions, getSearchOptions } from "./actions";
 import languageStore from "./stores/language-store";
 import speciesStore from "./stores/species-store";
@@ -19,6 +20,7 @@ const SearchBar = () => {
   const [showFilterOptions, setShowFilterOptions] = useState<boolean>(true);
   const [selectedFamily, setSelectedFamily] = useState<number>(-1);
   const searchInputRef = useRef<HTMLDivElement | null>(null);
+  const { t } = useT();
 
   useEffect(() => {
     const update = (lang: string) => {
@@ -132,7 +134,7 @@ const SearchBar = () => {
           setFilterOptions([]);
         }}
       >
-          <option value="-1">All orders</option>
+          <option value="-1">{t('all_orders')}</option>
           {orderOptions.map((o) => (
             <option key={`order-option-${o.id}`} value={o.id}>
             {o.name}
@@ -158,7 +160,7 @@ const SearchBar = () => {
             setFilterOptions([]);
         }}
       >
-          <option value="-1">All families</option>
+          <option value="-1">{t('all_families')}</option>
           {familyOptions.map((f) => (
             <option key={`family-option-${f.id}`} value={f.id}>
               {f.name}
@@ -181,7 +183,7 @@ const SearchBar = () => {
       <div className="search-input" ref={searchInputRef}>
         <input
           type="text"
-          placeholder="Search for a species..."
+          placeholder={t('search_species')}
           value={searchInput}
           onChange={(e) => {
             const v = e.target.value;

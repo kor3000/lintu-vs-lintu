@@ -12,8 +12,7 @@ const nextConfig: NextConfig = {
         hostname: "inaturalist-open-data.**.amazonaws.com"
       }
     ]
-  },
-  cacheComponents: true
+  }
 };
 
 export default nextConfig;

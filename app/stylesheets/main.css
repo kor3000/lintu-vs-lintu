@@ -282,11 +282,9 @@ a:hover {
   }
 }
 
-.btn-primary {
-  --bs-btn-bg: var(--blue-med);
-  --bs-btn-border-color: var(--blue-med);
-  &:hover {
-    background-color: var(--blue-dim);
-    border-color: var(--blue-dim);
+.modal-body {
+  .dropdown-container {
+    display: flex;
+    flex-direction: column;
   }
 }

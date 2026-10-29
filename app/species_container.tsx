@@ -1,5 +1,6 @@
 import Image from "next/image";
 import React, { useEffect, useState, useReducer } from "react";
+import { useT } from 'next-i18next/client';
 import { getSpeciesByIds } from "./actions";
 import { /*SizeData,*/ SpeciesActionKind, SpeciesAction } from "./common/types";
 import { MaterialSymbolsClose } from "./common/icons"
@@ -28,6 +29,7 @@ const SpeciesContainer = () => {
   const [speciesState, dispatch] = useReducer(speciesReducer, []);
   const [nameLang, setNameLang] = useState<string>(languageStore.nameLang);
   const [lastAction, setLastAction] = useState<SpeciesAction | null>(speciesStore.lastAction);
+  const { t } = useT();
 
   useEffect(() => {
     const nameLangObserver = {
@@ -115,11 +117,11 @@ const SpeciesContainer = () => {
             </div>
           )}
           <div className="species-subheader">
-            Scientific classification
+            {t('scientific_class')}
           </div>
           <div className="species-content">
-            <p><b>Family:</b> {s.genus.family.name}</p>
-            <p><b>Order:</b> {s.genus.family.order.name}</p>
+            <p><b>{t('family')}:</b> {s.genus.family.name}</p>
+            <p><b>{t('order')}:</b> {s.genus.family.order.name}</p>
           </div>
           {/*<div className="species-subheader">
             Size

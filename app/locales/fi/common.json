@@ -1,0 +1,23 @@
+{
+  "scientific_class": "Tieteellinen luokittelu",
+  "order": "Lahko",
+  "family": "Heimo",
+  "genus": "Suku",
+  "all_orders": "Kaikki lahkot",
+  "all_families": "Kaikki heimot",
+  "search_species": "Hae lajia...",
+  "info": "Tietoa sivustosta",
+  "settings": "Asetukset",
+  "close": "Sulje",
+  "save_changes": "Tallenna muutokset",
+  "info_modal": {
+    "lintu_link_title": "LINTU vs LINTU -projektin Github-sivu",
+    "birdnet_link_title": "BirdNET+ Taxonomy -projektin Github-sivu",
+    "p1": "<anchor>LINTU vs LINTU</anchor> on vertailutyökalu lintulajeille.",
+    "p2": "Data projektia varten kerättiin käyttämällä <anchor>BirdNET+ Taxonomy -liukuhihnaa</anchor>."
+  },
+  "settings_modal": {
+    "select_ui_lang": "Valitse käyttöliittymän kieli",
+    "select_species_lang": "Valitse lajien nimien kieli"
+  }
+}

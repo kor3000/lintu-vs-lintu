@@ -3,6 +3,15 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ModalProvider } from "./modal-context";
+import { initServerI18next, getT, getResources, generateI18nStaticParams } from 'next-i18next/server';
+import { I18nProvider } from 'next-i18next/client';
+import i18nConfig from '../i18n.config';
+
+initServerI18next(i18nConfig);
+
+export async function generateStaticParams() {
+  return generateI18nStaticParams();
+};
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -19,14 +28,19 @@ export const metadata: Metadata = {
   description: "Compare bird species",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const { i18n, lng } = await getT('common');
+  const resources = getResources(i18n, ['common'], [lng, 'en']);
+
   return (
     <html
-      lang="en"
+      lang={lng}
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <ModalProvider>{children}</ModalProvider>
+        <I18nProvider language={lng} resources={resources}>
+          <ModalProvider>{children}</ModalProvider>
+        </I18nProvider>
       </body>
     </html>
   );

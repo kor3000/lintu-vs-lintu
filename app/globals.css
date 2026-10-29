@@ -1,34 +1,30 @@
 @import "tailwindcss";
 @import "bootstrap/dist/css/bootstrap.min.css";
+@import "./stylesheets/_overrides.css";
 
 :root {
   --background: #00420C;
   --foreground: #ededed;
-  --green-dark: #00420C;
-  --green-dim: #10631E;
-  --green-med: #2A8239;
-  --green-light: #4DA15C;
-  --green-pastel: #7EC28A;
-  --brown-dark: #562900;
-  --brown-dim: #814915;
-  --brown-med: #AA6E37;
-  --brown-light: #D39A65;
-  --brown-pastel: #FDCFA5;
-  /*--blue-dark: #012F35;
-  --blue-dim: #0E474F;
-  --blue-med: #236068;
-  --blue-light: #3F7981; 
-  --blue-pastel: #66949B;*/
-  --blue-dark: #01535F;
-  --blue-dim: #026A79;
-  --blue-med: #026A79;
-  --blue-light: #2793A2;
-  --blue-pastel: #48A8B5;
-  --red-dark: #560600;
-  --red-dim: #811D15;
-  --red-med: #AA3F37;
-  --red-light: #D36D65;
-  --red-pastel: #FDABA5;
+  --green-dark: #00440C;
+  --green-dim: #0C741E;
+  --green-med: #279A3B;
+  --green-light: #50B662;
+  --green-pastel: #97DBA3;
+  --brown-dark: #592B00;
+  --brown-dim: #985110;
+  --brown-med: #C97B33;
+  --brown-light: #EEA969;
+  --brown-pastel: #FFD6B0;
+  --blue-dark: #013037;
+  --blue-dim: #0B535D;
+  --blue-med: #21707B;
+  --blue-light: #428892;
+  --blue-pastel: #88BDC4;
+  --red-dark: #590700;
+  --red-dim: #981A10;
+  --red-med: #C93E33;
+  --red-light: #EE7369;
+  --red-pastel: #FFB6B0;
 }
 
 @theme inline {

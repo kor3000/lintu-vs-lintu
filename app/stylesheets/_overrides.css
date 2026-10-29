@@ -1,0 +1,24 @@
+/* Bootstrap default overrides */
+.btn-primary {
+  background-color: var(--blue-med);
+  border-color: var(--blue-med);
+  &:hover, &.show {
+    background-color: var(--blue-dim);
+    border-color: var(--blue-dim);
+  }
+  &.active, :not(.btn-check) + &.btn:active {
+    background-color: var(--blue-dark);
+    border-color: var(--blue-dark);
+  }
+}
+
+.btn {
+  &.show, &:first-child:active {
+    background-color: var(--blue-dim);
+    border-color: var(--blue-dim);
+  }
+}
+
+.dropdown-item.active {
+  background-color: var(--blue-med);
+}
